@@ -5,7 +5,7 @@ import { useAppData } from '../stores/useAppData';
 import { finishMatch, cancelMatch } from '../stores/matchActions';
 import { computeMatchScore } from '../stats/matchStats';
 import { getCurrentOnCourt } from '../stats/onCourt';
-import { formatClock, formatDate } from '../utils/time';
+import { formatClock, formatDate, daysUntil } from '../utils/time';
 import { LineupPicker } from '../components/LineupPicker';
 import { OnCourtRoster } from '../components/OnCourtRoster';
 import { SubstitutionModal } from '../components/SubstitutionModal';
@@ -89,7 +89,15 @@ export function AnotarSession() {
   const lineupComplete =
     onCourtPlayers.filter((p) => p.position === 'player').length === 6 &&
     onCourtPlayers.filter((p) => p.position === 'goalkeeper').length === 1;
-  const canStart = lineupDone || lineupComplete;
+  // The very first start is only allowed on match day itself; resuming after
+  // a pause (lineupDone already true) is never re-blocked by the date.
+  const isMatchDay = daysUntil(match.date) === 0;
+  const canStart = lineupDone || (lineupComplete && isMatchDay);
+  const startDisabledReason = canStart
+    ? undefined
+    : !lineupComplete
+      ? 'Completa la alineación (6 + portero) para iniciar'
+      : 'Solo puedes iniciar el partido el día programado';
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
 
@@ -170,7 +178,7 @@ export function AnotarSession() {
               onClick={() => startClock()}
               disabled={!canStart}
               className={btnClass('emerald') + (canStart ? '' : ' opacity-40')}
-              title={canStart ? undefined : 'Completa la alineación (6 + portero) para iniciar'}
+              title={startDisabledReason}
             >
               Iniciar
             </button>
@@ -223,7 +231,9 @@ export function AnotarSession() {
           ) : lineupDone ? (
             <ActionPanelPlaceholder />
           ) : (
-            <p className="flex h-full items-center justify-center text-center text-slate-400">Completa la alineación para empezar</p>
+            <p className="flex h-full items-center justify-center text-center text-slate-400">
+              {startDisabledReason ?? 'Pulsa "Iniciar" para empezar el partido'}
+            </p>
           )}
         </div>
         <div className="min-h-0 overflow-y-auto rounded-xl border-2 border-slate-700 bg-slate-800/60 p-3">
