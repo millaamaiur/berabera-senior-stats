@@ -1,4 +1,5 @@
 import type { Match, MatchEvent, Zone } from '../domain/types';
+import { getOnCourtAt } from './onCourt';
 
 export interface MatchScore {
   goalsFor: number;
@@ -9,14 +10,14 @@ export type MatchOutcome = 'win' | 'loss' | 'draw';
 
 /**
  * Team score derived from events: goals scored by field players (`shot`)
- * vs. goals conceded by our goalkeepers (`gk_shot` with result 'goal').
+ * vs. goals conceded on rival attacks (`opponent_attack` with result 'goal').
  */
 export function computeMatchScore(events: MatchEvent[]): MatchScore {
   let goalsFor = 0;
   let goalsAgainst = 0;
   for (const e of events) {
     if (e.eventType === 'shot' && e.eventData.result === 'goal') goalsFor++;
-    if (e.eventType === 'gk_shot' && e.eventData.result === 'goal') goalsAgainst++;
+    if (e.eventType === 'opponent_attack' && e.eventData.result === 'goal') goalsAgainst++;
   }
   return { goalsFor, goalsAgainst };
 }
@@ -119,6 +120,37 @@ export function computeGoalkeeperStats(events: MatchEvent[], playerId: string): 
     penaltiesSaved,
     penaltiesConceded,
     penaltySavePct: penalties.length ? Math.round((penaltiesSaved / penalties.length) * 100) : 0,
+  };
+}
+
+export interface DefensiveOnCourtStats {
+  attacksFaced: number;
+  goalsAgainst: number;
+  stopped: number;
+  stopPct: number;
+}
+
+/**
+ * For a given player, tallies the rival attacks (`opponent_attack`) that happened
+ * while they were on court — regardless of position — so every player gets a
+ * "goals conceded while playing" and "defensive stop %" figure, not just the
+ * goalkeeper who happened to be selected for a shot.
+ */
+export function computeDefensiveOnCourtStats(events: MatchEvent[], playerId: string): DefensiveOnCourtStats {
+  let goalsAgainst = 0;
+  let stopped = 0;
+  for (const e of events) {
+    if (e.eventType !== 'opponent_attack') continue;
+    if (!getOnCourtAt(events, e.timestamp).has(playerId)) continue;
+    if (e.eventData.result === 'goal') goalsAgainst++;
+    else stopped++;
+  }
+  const attacksFaced = goalsAgainst + stopped;
+  return {
+    attacksFaced,
+    goalsAgainst,
+    stopped,
+    stopPct: attacksFaced ? Math.round((stopped / attacksFaced) * 100) : 0,
   };
 }
 

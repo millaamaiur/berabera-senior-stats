@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
-import { computeFieldPlayerStats, computeGoalkeeperStats, computeZoneStats } from '../stats/matchStats';
+import { computeDefensiveOnCourtStats, computeFieldPlayerStats, computeGoalkeeperStats, computeZoneStats } from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { formatClock, formatDate } from '../utils/time';
 import { PlayerAvatar } from '../components/PlayerAvatar';
@@ -26,6 +26,20 @@ export function PlayerProfile() {
     () => matches.filter((m) => player && m.calledPlayerIds.includes(player.id)),
     [matches, player]
   );
+
+  const defenseStats = useMemo(() => {
+    if (!player) return { attacksFaced: 0, goalsAgainst: 0, stopped: 0, stopPct: 0 };
+    let goalsAgainst = 0;
+    let stopped = 0;
+    for (const m of matches) {
+      const matchEvents = events.filter((e) => e.matchId === m.id);
+      const s = computeDefensiveOnCourtStats(matchEvents, player.id);
+      goalsAgainst += s.goalsAgainst;
+      stopped += s.stopped;
+    }
+    const attacksFaced = goalsAgainst + stopped;
+    return { attacksFaced, goalsAgainst, stopped, stopPct: attacksFaced ? Math.round((stopped / attacksFaced) * 100) : 0 };
+  }, [player, matches, events]);
 
   if (!player) {
     return <p className="p-4 text-white">Jugador no encontrado.</p>;
@@ -76,6 +90,8 @@ export function PlayerProfile() {
             <Stat label="% Parada penalti" value={`${gkStats.penaltySavePct}%`} />
           </>
         )}
+        <Stat label="GC en pista" value={defenseStats.goalsAgainst} />
+        <Stat label="% Def. equipo" value={defenseStats.attacksFaced ? `${defenseStats.stopPct}%` : '—'} />
       </section>
 
       <section>

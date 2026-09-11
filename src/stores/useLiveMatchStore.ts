@@ -7,8 +7,10 @@ import type {
   GkShotEventData,
   Match,
   MatchEvent,
+  OpponentAttackEventData,
   SimpleFieldEventType,
 } from '../domain/types';
+import { RIVAL_ID } from '../domain/types';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { useAppData } from './useAppData';
 
@@ -38,6 +40,7 @@ interface LiveMatchState {
   recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
   recordGkShot: (playerId: string, eventData: GkShotEventData) => Promise<void>;
+  recordOpponentAttack: (result: OpponentAttackEventData['result']) => Promise<void>;
   undo: () => Promise<void>;
   updateEvent: (event: MatchEvent) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
@@ -172,6 +175,13 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const { match } = get();
     if (!match) return;
     await pushEvent(get, set, match, playerId, 'gk_shot', eventData);
+  },
+
+  recordOpponentAttack: async (result) => {
+    const { match } = get();
+    if (!match) return;
+    const eventData: OpponentAttackEventData = { result };
+    await pushEvent(get, set, match, RIVAL_ID, 'opponent_attack', eventData);
   },
 
   undo: async () => {

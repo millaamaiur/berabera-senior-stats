@@ -66,6 +66,13 @@ export interface CourtChangeEventData {
   action: 'enter' | 'exit';
 }
 
+export interface OpponentAttackEventData {
+  result: 'goal' | 'stopped';
+}
+
+/** Sentinel playerId for team-level events that aren't tied to one of our players. */
+export const RIVAL_ID = 'rival';
+
 interface BaseEvent {
   id: string;
   matchId: string;
@@ -84,7 +91,8 @@ export type MatchEvent =
   | (BaseEvent & { eventType: 'card_red' })
   | (BaseEvent & { eventType: 'card_blue' })
   | (BaseEvent & { eventType: 'exclusion_2min' })
-  | (BaseEvent & { eventType: 'court_change'; eventData: CourtChangeEventData });
+  | (BaseEvent & { eventType: 'court_change'; eventData: CourtChangeEventData })
+  | (BaseEvent & { eventType: 'opponent_attack'; eventData: OpponentAttackEventData });
 
 export type EventType = MatchEvent['eventType'];
 

@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
-import { computeFieldPlayerStats, computeGoalkeeperStats, computeMatchScore, matchOutcome } from '../stats/matchStats';
+import {
+  computeDefensiveOnCourtStats,
+  computeFieldPlayerStats,
+  computeGoalkeeperStats,
+  computeMatchScore,
+  matchOutcome,
+} from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { buildTimeline } from '../stats/timeline';
-import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
+import { describeEventDetail, EVENT_LABELS, playerLabelFor } from '../utils/eventLabels';
 import { formatClock, formatDate } from '../utils/time';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { EditSquadModal } from '../components/EditSquadModal';
@@ -77,11 +83,14 @@ export function MatchDetail() {
                 <th className="p-2 text-right">Minutos</th>
                 <th className="p-2 text-right">Goles/Lanz.</th>
                 <th className="p-2 text-right">Otros</th>
+                <th className="p-2 text-right">GC en pista</th>
+                <th className="p-2 text-right">% Def.</th>
               </tr>
             </thead>
             <tbody>
               {roster.map((p) => {
                 const minutes = computeMinutesPlayed(matchEvents, p.id, match.clock.elapsedSeconds);
+                const def = computeDefensiveOnCourtStats(matchEvents, p.id);
                 if (p.position === 'goalkeeper') {
                   const gk = computeGoalkeeperStats(matchEvents, p.id);
                   return (
@@ -97,6 +106,8 @@ export function MatchDetail() {
                         {gk.saves}/{gk.shotsFaced} paradas
                       </td>
                       <td className="p-2 text-right">{gk.penaltiesSaved}/{gk.penaltiesFaced} penaltis</td>
+                      <td className="p-2 text-right">{def.goalsAgainst}</td>
+                      <td className="p-2 text-right">{def.attacksFaced ? `${def.stopPct}%` : '—'}</td>
                     </tr>
                   );
                 }
@@ -116,6 +127,8 @@ export function MatchDetail() {
                     <td className="p-2 text-right">
                       {fs.turnovers} pérd. · {fs.assists} asist.
                     </td>
+                    <td className="p-2 text-right">{def.goalsAgainst}</td>
+                    <td className="p-2 text-right">{def.attacksFaced ? `${def.stopPct}%` : '—'}</td>
                   </tr>
                 );
               })}
@@ -157,12 +170,11 @@ export function MatchDetail() {
                 </div>
               );
             }
-            const player = players.find((p) => p.id === row.event.playerId);
             const detail = describeEventDetail(row.event);
             const content = (
               <>
                 <span className="w-14 font-mono text-slate-400">{formatClock(row.event.timestamp)}</span>
-                <span className="flex-1 font-semibold">{player?.name ?? '—'}</span>
+                <span className="flex-1 font-semibold">{playerLabelFor(row.event, players)}</span>
                 <span className="text-slate-300">{EVENT_LABELS[row.event.eventType]}</span>
                 {detail && <span className="text-slate-400">{detail}</span>}
               </>

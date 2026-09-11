@@ -18,6 +18,11 @@ export function getCurrentOnCourt(events: MatchEvent[]): Set<string> {
   return onCourt;
 }
 
+/** Who was on court at a given match-clock timestamp, replaying enter/exit events up to that moment. */
+export function getOnCourtAt(events: MatchEvent[], timestamp: number): Set<string> {
+  return getCurrentOnCourt(events.filter((e) => e.timestamp <= timestamp));
+}
+
 /**
  * Minutes played by a player, in seconds, from paired enter/exit intervals.
  * Does not assume any fixed number of players on court at once.
