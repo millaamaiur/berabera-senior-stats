@@ -203,13 +203,15 @@ export function AnotarSession() {
             Deshacer
           </button>
           {lineupDone && (
-            <button type="button" onClick={handleCancel} className={btnClass('rose')}>
-              Cancelar partido
-            </button>
+            <>
+              <button type="button" onClick={handleCancel} className={btnClass('rose')}>
+                Cancelar partido
+              </button>
+              <button type="button" onClick={handleFinish} className={btnClass('amber')}>
+                Finalizar
+              </button>
+            </>
           )}
-          <button type="button" onClick={handleFinish} className={btnClass('amber')}>
-            Finalizar
-          </button>
         </div>
       </div>
 
