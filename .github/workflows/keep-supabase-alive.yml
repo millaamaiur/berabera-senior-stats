@@ -1,0 +1,25 @@
+name: Keep Supabase alive
+
+# Supabase's free tier pauses a project after 7 days with no API requests.
+# This pings it twice a week so the team's stats app is never asleep on a
+# match day. The anon key here is the same public key already shipped in
+# the deployed app's JS bundle — it's meant to be public, RLS protects data.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1,4" # every Monday and Thursday at 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          curl -sS -f \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/players?select=id&limit=1" \
+            -o /dev/null
+        env:
+          SUPABASE_URL: https://sonomjvfouiuqejjxgts.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvbm9tanZmb3VpdXFlamp4Z3RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDkwNjYsImV4cCI6MjEwNDYyNTA2Nn0.TpM_Qwe0QUOBvWtWQOkSReFL0X_Y5ymQwP-LFDytD14
