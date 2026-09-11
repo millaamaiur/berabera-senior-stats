@@ -71,6 +71,7 @@ export function PlayerProfile() {
             <Stat label="% Acierto" value={`${fieldStats.shotPct}%`} />
             <Stat label="Asist." value={fieldStats.assists} />
             <Stat label="Pérdidas" value={fieldStats.turnovers} />
+            <Stat label="Recup." value={fieldStats.recoveries} />
             <Stat label="Pasos" value={fieldStats.steps} />
             <Stat label="Amarillas" value={fieldStats.yellowCards} />
             <Stat label="Rojas" value={fieldStats.redCards} />

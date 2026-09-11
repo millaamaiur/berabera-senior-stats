@@ -5,6 +5,7 @@ export const EVENT_LABELS: Record<MatchEvent['eventType'], string> = {
   gk_shot: 'Lanzamiento recibido',
   assist: 'Asistencia',
   turnover: 'Pérdida',
+  recovery: 'Recuperación',
   steps: 'Pasos',
   card_yellow: 'Amarilla',
   card_red: 'Roja',

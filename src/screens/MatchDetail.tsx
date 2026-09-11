@@ -125,7 +125,7 @@ export function MatchDetail() {
                       {fs.goals}/{fs.shots}
                     </td>
                     <td className="p-2 text-right">
-                      {fs.turnovers} pérd. · {fs.assists} asist.
+                      {fs.turnovers} pérd. · {fs.assists} asist. · {fs.recoveries} recup.
                     </td>
                     <td className="p-2 text-right">{def.goalsAgainst}</td>
                     <td className="p-2 text-right">{def.attacksFaced ? `${def.stopPct}%` : '—'}</td>

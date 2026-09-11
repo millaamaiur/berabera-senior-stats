@@ -8,7 +8,7 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
 
-type SortKey = 'goals' | 'assists' | 'turnovers' | 'exclusions';
+type SortKey = 'goals' | 'assists' | 'turnovers' | 'recoveries' | 'exclusions';
 type GkSortKey = 'saves' | 'goalsConceded' | 'savePct';
 
 export function Home() {
@@ -104,6 +104,7 @@ export function Home() {
             <option value="goals">Goles</option>
             <option value="assists">Asistencias</option>
             <option value="turnovers">Pérdidas</option>
+            <option value="recoveries">Recuperaciones</option>
             <option value="exclusions">Exclusiones</option>
           </select>
         </div>
@@ -115,6 +116,7 @@ export function Home() {
                 <th className="p-2 text-right">Goles</th>
                 <th className="p-2 text-right">Asist.</th>
                 <th className="p-2 text-right">Pérdidas</th>
+                <th className="p-2 text-right">Recup.</th>
                 <th className="p-2 text-right">Exclus.</th>
               </tr>
             </thead>
@@ -130,6 +132,7 @@ export function Home() {
                   <td className="p-2 text-right">{stats.goals}</td>
                   <td className="p-2 text-right">{stats.assists}</td>
                   <td className="p-2 text-right">{stats.turnovers}</td>
+                  <td className="p-2 text-right">{stats.recoveries}</td>
                   <td className="p-2 text-right">{stats.exclusions}</td>
                 </tr>
               ))}

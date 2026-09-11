@@ -63,6 +63,7 @@ export interface FieldPlayerStats {
   shotPct: number;
   assists: number;
   turnovers: number;
+  recoveries: number;
   steps: number;
   yellowCards: number;
   redCards: number;
@@ -82,6 +83,7 @@ export function computeFieldPlayerStats(events: MatchEvent[], playerId: string):
     shotPct: shotsCount ? Math.round((goals / shotsCount) * 100) : 0,
     assists: own.filter((e) => e.eventType === 'assist').length,
     turnovers: own.filter((e) => e.eventType === 'turnover').length,
+    recoveries: own.filter((e) => e.eventType === 'recovery').length,
     steps: own.filter((e) => e.eventType === 'steps').length,
     yellowCards: own.filter((e) => e.eventType === 'card_yellow').length,
     redCards: own.filter((e) => e.eventType === 'card_red').length,

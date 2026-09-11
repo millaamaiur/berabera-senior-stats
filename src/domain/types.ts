@@ -79,6 +79,7 @@ export type MatchEvent =
   | (BaseEvent & { eventType: 'gk_shot'; eventData: GkShotEventData })
   | (BaseEvent & { eventType: 'assist' })
   | (BaseEvent & { eventType: 'turnover' })
+  | (BaseEvent & { eventType: 'recovery' })
   | (BaseEvent & { eventType: 'steps' })
   | (BaseEvent & { eventType: 'card_yellow' })
   | (BaseEvent & { eventType: 'card_red' })
@@ -92,6 +93,7 @@ export type EventType = MatchEvent['eventType'];
 export type SimpleFieldEventType =
   | 'assist'
   | 'turnover'
+  | 'recovery'
   | 'steps'
   | 'card_yellow'
   | 'card_red'
