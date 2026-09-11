@@ -31,6 +31,7 @@ interface LiveMatchState {
   resetClock: () => Promise<void>;
   getElapsedSeconds: () => number;
   updateCalledPlayers: (calledPlayerIds: string[]) => Promise<void>;
+  updateDate: (date: string) => Promise<void>;
 
   /** Returns false when the move is rejected (e.g. the 6+1 court limit is already full). */
   toggleCourt: (playerId: string) => Promise<boolean>;
@@ -123,6 +124,15 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const { match } = get();
     if (!match) return;
     const updated: Match = { ...match, calledPlayerIds };
+    await persistMatch(updated);
+    set({ match: updated });
+    await useAppData.getState().reload();
+  },
+
+  updateDate: async (date: string) => {
+    const { match } = get();
+    if (!match) return;
+    const updated: Match = { ...match, date };
     await persistMatch(updated);
     set({ match: updated });
     await useAppData.getState().reload();

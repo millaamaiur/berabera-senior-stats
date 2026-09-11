@@ -5,7 +5,7 @@ import { useAppData } from '../stores/useAppData';
 import { finishMatch, cancelMatch } from '../stores/matchActions';
 import { computeMatchScore } from '../stats/matchStats';
 import { getCurrentOnCourt } from '../stats/onCourt';
-import { formatClock } from '../utils/time';
+import { formatClock, formatDate } from '../utils/time';
 import { LineupPicker } from '../components/LineupPicker';
 import { OnCourtRoster } from '../components/OnCourtRoster';
 import { SubstitutionModal } from '../components/SubstitutionModal';
@@ -13,6 +13,7 @@ import { ActionPanel } from '../components/ActionPanel';
 import { ActionPanelPlaceholder } from '../components/ActionPanelPlaceholder';
 import { LiveTimeline } from '../components/LiveTimeline';
 import { EditSquadModal } from '../components/EditSquadModal';
+import { EditMatchDateModal } from '../components/EditMatchDateModal';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { PinLock } from '../components/PinLock';
@@ -40,13 +41,16 @@ export function AnotarSession() {
   const updateEvent = useLiveMatchStore((s) => s.updateEvent);
   const deleteEvent = useLiveMatchStore((s) => s.deleteEvent);
   const updateCalledPlayers = useLiveMatchStore((s) => s.updateCalledPlayers);
+  const updateDate = useLiveMatchStore((s) => s.updateDate);
   const syncGlobalData = useLiveMatchStore((s) => s.syncGlobalData);
 
   const players = useAppData((s) => s.players);
+  const matches = useAppData((s) => s.matches);
 
   const [, forceTick] = useState(0);
   const [showSubs, setShowSubs] = useState(false);
   const [showSquad, setShowSquad] = useState(false);
+  const [showEditDate, setShowEditDate] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventEditorTarget | null>(null);
 
   useEffect(() => {
@@ -132,6 +136,17 @@ export function AnotarSession() {
         <div>
           <p className="text-xs text-slate-400 sm:text-sm">vs</p>
           <p className="text-base font-bold text-white sm:text-lg">{match.opponent}</p>
+          {lineupDone ? (
+            <p className="text-xs text-slate-400">{formatDate(match.date)}</p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowEditDate(true)}
+              className="text-xs font-semibold text-amber-400 underline decoration-dotted"
+            >
+              {formatDate(match.date)} · editar fecha
+            </button>
+          )}
         </div>
         <p className="text-2xl font-black text-white sm:text-3xl">
           {goalsFor} - {goalsAgainst}
@@ -245,6 +260,15 @@ export function AnotarSession() {
           onUpdateEvent={updateEvent}
           onDeleteEvent={deleteEvent}
           onClose={() => setEditingEvent(null)}
+        />
+      )}
+
+      {showEditDate && (
+        <EditMatchDateModal
+          match={match}
+          allMatches={matches}
+          onSave={updateDate}
+          onClose={() => setShowEditDate(false)}
         />
       )}
 
