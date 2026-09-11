@@ -1,6 +1,6 @@
 import type { MatchEvent, Player } from '../domain/types';
 import { buildTimeline, type TimelineRow } from '../stats/timeline';
-import { describeEventDetail, EVENT_LABELS, playerLabelFor } from '../utils/eventLabels';
+import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 
 interface LiveTimelineProps {
@@ -38,6 +38,7 @@ export function LiveTimeline({ events, players, onRowClick }: LiveTimelineProps)
               </button>
             );
           }
+          const player = players.find((p) => p.id === row.event.playerId);
           const detail = describeEventDetail(row.event);
           return (
             <button
@@ -48,7 +49,7 @@ export function LiveTimeline({ events, players, onRowClick }: LiveTimelineProps)
               className="flex items-center gap-2 rounded-lg bg-slate-900/70 px-2 py-1.5 text-left text-sm text-white disabled:cursor-default"
             >
               <span className="w-12 shrink-0 font-mono text-xs text-amber-400">{formatClock(row.event.timestamp)}</span>
-              <span className="flex-1 truncate font-semibold">{playerLabelFor(row.event, players)}</span>
+              <span className="flex-1 truncate font-semibold">{player?.name ?? '—'}</span>
               <span className="shrink-0 text-xs text-slate-300">{EVENT_LABELS[row.event.eventType]}</span>
               {detail && <span className="shrink-0 text-xs text-slate-500">{detail}</span>}
             </button>

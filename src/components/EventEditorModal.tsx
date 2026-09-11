@@ -31,17 +31,15 @@ interface EventEditorModalProps {
   onClose: () => void;
 }
 
-const RESULT_LABELS: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada', stopped: 'Fallado' };
+const RESULT_LABELS: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada' };
 
-/** Edit the result/zone of a shot, the result of a rival attack, or delete any single event / substitution pair. */
+/** Edit the result/zone of a shot, or delete any single event / substitution pair. */
 export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose }: EventEditorModalProps) {
   const { ask, dialog } = useConfirmDialog();
   const initialEvent = target.kind === 'single' ? target.event : null;
   const isShot = initialEvent?.eventType === 'shot' || initialEvent?.eventType === 'gk_shot';
-  const isOpponentAttack = initialEvent?.eventType === 'opponent_attack';
   const [draftResult, setDraftResult] = useState<string | null>(
-    initialEvent &&
-      (initialEvent.eventType === 'shot' || initialEvent.eventType === 'gk_shot' || initialEvent.eventType === 'opponent_attack')
+    initialEvent && (initialEvent.eventType === 'shot' || initialEvent.eventType === 'gk_shot')
       ? initialEvent.eventData.result
       : null
   );
@@ -74,15 +72,6 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
     }
   }
 
-  async function handleSaveOpponentAttack() {
-    if (target.kind !== 'single' || !draftResult) return;
-    const event = target.event;
-    if (event.eventType === 'opponent_attack') {
-      await onUpdateEvent({ ...event, eventData: { result: draftResult as 'goal' | 'stopped' } });
-      onClose();
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
       <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border-2 border-slate-700 bg-slate-900 p-4">
@@ -110,7 +99,7 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
           <>
             <div className="rounded-lg bg-slate-800 p-3 text-sm text-white">
               <p className="font-mono text-amber-400">{formatClock(target.event.timestamp)}</p>
-              <p className="mt-1 font-semibold">{isOpponentAttack ? 'Rival' : target.player?.name ?? '—'}</p>
+              <p className="mt-1 font-semibold">{target.player?.name ?? '—'}</p>
               <p className="text-slate-400">{EVENT_LABELS[target.event.eventType]}</p>
             </div>
 
@@ -134,34 +123,6 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
                 </div>
                 <p className="text-sm font-semibold text-slate-300">Zona (toca para guardar)</p>
                 <ShotGrid3x3 onSelectZone={handleZoneClick} />
-              </div>
-            )}
-
-            {isOpponentAttack && (
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-sm font-semibold text-slate-300">Resultado</p>
-                <div className="flex gap-2">
-                  {(['stopped', 'goal'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setDraftResult(opt)}
-                      className={[
-                        'rounded-lg border-2 px-4 py-2 font-bold',
-                        draftResult === opt ? 'border-amber-400 bg-amber-500 text-slate-900' : 'border-slate-600 bg-slate-800 text-white',
-                      ].join(' ')}
-                    >
-                      {RESULT_LABELS[opt]}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveOpponentAttack}
-                  className="rounded-lg bg-amber-500 px-4 py-2 font-bold text-slate-900"
-                >
-                  Guardar
-                </button>
               </div>
             )}
 

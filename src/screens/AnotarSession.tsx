@@ -40,7 +40,6 @@ export function AnotarSession() {
   const undo = useLiveMatchStore((s) => s.undo);
   const updateEvent = useLiveMatchStore((s) => s.updateEvent);
   const deleteEvent = useLiveMatchStore((s) => s.deleteEvent);
-  const recordOpponentAttack = useLiveMatchStore((s) => s.recordOpponentAttack);
   const updateCalledPlayers = useLiveMatchStore((s) => s.updateCalledPlayers);
   const updateDate = useLiveMatchStore((s) => s.updateDate);
   const syncGlobalData = useLiveMatchStore((s) => s.syncGlobalData);
@@ -233,18 +232,9 @@ export function AnotarSession() {
       {lineupDone ? (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-slate-700 bg-slate-800 p-3">
           <OnCourtRoster onCourtPlayers={onCourtPlayers} selectedPlayerId={selectedPlayerId} onSelectPlayer={selectPlayer} />
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs font-semibold text-slate-400 sm:inline">Rival</span>
-            <button type="button" onClick={() => recordOpponentAttack('stopped')} className={btnClass('slate')}>
-              Ataque fallido
-            </button>
-            <button type="button" onClick={() => recordOpponentAttack('goal')} className={btnClass('rose')}>
-              Gol rival
-            </button>
-            <button type="button" onClick={() => setShowSubs(true)} className={btnClass('amber')}>
-              Hacer cambios
-            </button>
-          </div>
+          <button type="button" onClick={() => setShowSubs(true)} className={btnClass('amber')}>
+            Hacer cambios
+          </button>
         </div>
       ) : (
         <LineupPicker calledPlayers={calledPlayers} onCourtIds={onCourtIds} onToggleCourt={toggleCourt} />

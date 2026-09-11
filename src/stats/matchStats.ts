@@ -10,14 +10,14 @@ export type MatchOutcome = 'win' | 'loss' | 'draw';
 
 /**
  * Team score derived from events: goals scored by field players (`shot`)
- * vs. goals conceded on rival attacks (`opponent_attack` with result 'goal').
+ * vs. goals conceded by our goalkeepers (`gk_shot` with result 'goal').
  */
 export function computeMatchScore(events: MatchEvent[]): MatchScore {
   let goalsFor = 0;
   let goalsAgainst = 0;
   for (const e of events) {
     if (e.eventType === 'shot' && e.eventData.result === 'goal') goalsFor++;
-    if (e.eventType === 'opponent_attack' && e.eventData.result === 'goal') goalsAgainst++;
+    if (e.eventType === 'gk_shot' && e.eventData.result === 'goal') goalsAgainst++;
   }
   return { goalsFor, goalsAgainst };
 }
@@ -131,16 +131,16 @@ export interface DefensiveOnCourtStats {
 }
 
 /**
- * For a given player, tallies the rival attacks (`opponent_attack`) that happened
- * while they were on court — regardless of position — so every player gets a
- * "goals conceded while playing" and "defensive stop %" figure, not just the
- * goalkeeper who happened to be selected for a shot.
+ * For a given player, tallies the rival shots faced (`gk_shot`, recorded against
+ * whichever goalkeeper was on court) that happened while THEY were on court —
+ * regardless of position — so every player gets a "goals conceded while playing"
+ * and "defensive stop %" figure, not just the goalkeeper who faced the shot.
  */
 export function computeDefensiveOnCourtStats(events: MatchEvent[], playerId: string): DefensiveOnCourtStats {
   let goalsAgainst = 0;
   let stopped = 0;
   for (const e of events) {
-    if (e.eventType !== 'opponent_attack') continue;
+    if (e.eventType !== 'gk_shot') continue;
     if (!getOnCourtAt(events, e.timestamp).has(playerId)) continue;
     if (e.eventData.result === 'goal') goalsAgainst++;
     else stopped++;

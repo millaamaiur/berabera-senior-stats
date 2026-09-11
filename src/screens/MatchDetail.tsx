@@ -10,7 +10,7 @@ import {
 } from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { buildTimeline } from '../stats/timeline';
-import { describeEventDetail, EVENT_LABELS, playerLabelFor } from '../utils/eventLabels';
+import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock, formatDate } from '../utils/time';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { EditSquadModal } from '../components/EditSquadModal';
@@ -170,11 +170,12 @@ export function MatchDetail() {
                 </div>
               );
             }
+            const player = players.find((p) => p.id === row.event.playerId);
             const detail = describeEventDetail(row.event);
             const content = (
               <>
                 <span className="w-14 font-mono text-slate-400">{formatClock(row.event.timestamp)}</span>
-                <span className="flex-1 font-semibold">{playerLabelFor(row.event, players)}</span>
+                <span className="flex-1 font-semibold">{player?.name ?? '—'}</span>
                 <span className="text-slate-300">{EVENT_LABELS[row.event.eventType]}</span>
                 {detail && <span className="text-slate-400">{detail}</span>}
               </>
