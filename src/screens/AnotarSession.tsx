@@ -141,20 +141,34 @@ export function AnotarSession() {
   return (
     <div className="flex h-full flex-col gap-2 overflow-hidden p-2 sm:p-3">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-700 bg-slate-800 p-2 sm:p-3">
-        <div>
-          <p className="text-xs text-slate-400 sm:text-sm">vs</p>
-          <p className="text-base font-bold text-white sm:text-lg">{match.opponent}</p>
-          {lineupDone ? (
-            <p className="text-xs text-slate-400">{formatDate(match.date)}</p>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowEditDate(true)}
-              className="text-xs font-semibold text-amber-400 underline decoration-dotted"
-            >
-              {formatDate(match.date)} · editar fecha
-            </button>
-          )}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/partidos')}
+            disabled={match.clock.running}
+            className={[
+              'rounded-lg border-2 px-3 py-3 text-sm font-semibold touch-manipulation',
+              match.clock.running ? 'border-slate-700 text-slate-600' : 'border-slate-600 text-slate-300',
+            ].join(' ')}
+            title={match.clock.running ? 'Pausa el partido antes de salir' : undefined}
+          >
+            ← Salir
+          </button>
+          <div>
+            <p className="text-xs text-slate-400 sm:text-sm">vs</p>
+            <p className="text-base font-bold text-white sm:text-lg">{match.opponent}</p>
+            {lineupDone ? (
+              <p className="text-xs text-slate-400">{formatDate(match.date)}</p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowEditDate(true)}
+                className="text-xs font-semibold text-amber-400 underline decoration-dotted"
+              >
+                {formatDate(match.date)} · editar fecha
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-2xl font-black text-white sm:text-3xl">
           {goalsFor} - {goalsAgainst}
