@@ -69,6 +69,13 @@ export function PlayerProfile() {
             <Stat label="Goles" value={fieldStats.goals} />
             <Stat label="Lanz." value={fieldStats.shots} />
             <Stat label="% Acierto" value={`${fieldStats.shotPct}%`} />
+            {fieldStats.penaltiesTaken > 0 && (
+              <>
+                <Stat label="Penaltis lanz." value={fieldStats.penaltiesTaken} />
+                <Stat label="Penaltis gol" value={fieldStats.penaltiesScored} />
+                <Stat label="% Penaltis" value={`${fieldStats.penaltyScorePct}%`} />
+              </>
+            )}
             <Stat label="Asist." value={fieldStats.assists} />
             <Stat label="Pérdidas" value={fieldStats.turnovers} />
             <Stat label="Recup." value={fieldStats.recoveries} />

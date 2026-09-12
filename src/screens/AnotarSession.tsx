@@ -14,6 +14,7 @@ import { ActionPanelPlaceholder } from '../components/ActionPanelPlaceholder';
 import { LiveTimeline } from '../components/LiveTimeline';
 import { EditSquadModal } from '../components/EditSquadModal';
 import { EditMatchDateModal } from '../components/EditMatchDateModal';
+import { MatchRosterTable } from '../components/MatchRosterTable';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { PinLock } from '../components/PinLock';
@@ -38,6 +39,7 @@ export function AnotarSession() {
   const checkHalftime = useLiveMatchStore((s) => s.checkHalftime);
   const getElapsedSeconds = useLiveMatchStore((s) => s.getElapsedSeconds);
   const toggleCourt = useLiveMatchStore((s) => s.toggleCourt);
+  const confirmSubstitution = useLiveMatchStore((s) => s.confirmSubstitution);
   const undo = useLiveMatchStore((s) => s.undo);
   const updateEvent = useLiveMatchStore((s) => s.updateEvent);
   const deleteEvent = useLiveMatchStore((s) => s.deleteEvent);
@@ -53,6 +55,7 @@ export function AnotarSession() {
   const [showSquad, setShowSquad] = useState(false);
   const [showEditDate, setShowEditDate] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventEditorTarget | null>(null);
+  const [dismissedHalftimeStats, setDismissedHalftimeStats] = useState(false);
 
   useEffect(() => {
     if (matchId) loadMatch(matchId);
@@ -72,6 +75,12 @@ export function AnotarSession() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.clock.running]);
+
+  // Ready to show the halftime summary again next time (e.g. after a Reset)
+  // as soon as we're no longer sitting at a reached-but-not-yet-passed halftime.
+  useEffect(() => {
+    if (!match?.clock.halftimeReached) setDismissedHalftimeStats(false);
+  }, [match?.clock.halftimeReached]);
 
   if (!unlocked) {
     return <PinLock message="Introduce el PIN para anotar este partido" />;
@@ -104,6 +113,7 @@ export function AnotarSession() {
       ? 'Completa la alineación (6 + portero) para iniciar'
       : 'Solo puedes iniciar el partido el día programado';
   const showSecondHalfPrompt = match.clock.halftimeReached && !match.clock.secondHalfStarted && !match.clock.running;
+  const showHalftimeScreen = showSecondHalfPrompt && !dismissedHalftimeStats;
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
 
@@ -142,6 +152,28 @@ export function AnotarSession() {
 
     await cancelMatch(match);
     navigate('/partidos');
+  }
+
+  if (showHalftimeScreen) {
+    return (
+      <div className="flex h-full flex-col gap-3 overflow-y-auto p-2 sm:p-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-slate-800 p-3">
+          <div>
+            <p className="text-xs font-bold text-amber-400">DESCANSO</p>
+            <p className="text-lg font-bold text-white">vs {match.opponent}</p>
+          </div>
+          <p className="text-3xl font-black text-white">
+            {goalsFor} - {goalsAgainst}
+          </p>
+          <button type="button" onClick={() => setDismissedHalftimeStats(true)} className={btnClass('amber')}>
+            Pasar a segunda parte
+          </button>
+        </div>
+        <p className="text-sm text-slate-400">Estadísticas del partido hasta el descanso:</p>
+        <MatchRosterTable roster={calledPlayers} matchEvents={events} elapsedSeconds={match.clock.elapsedSeconds} />
+        {confirmDialog}
+      </div>
+    );
   }
 
   return (
@@ -274,7 +306,7 @@ export function AnotarSession() {
         <SubstitutionModal
           onCourtPlayers={onCourtPlayers}
           benchPlayers={benchPlayers}
-          onToggleCourt={toggleCourt}
+          onConfirm={confirmSubstitution}
           onClose={() => setShowSubs(false)}
         />
       )}

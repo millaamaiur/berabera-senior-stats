@@ -24,7 +24,7 @@ const RESULT_LABELS: Record<string, string> = {
 export function describeEventDetail(event: MatchEvent): string | null {
   switch (event.eventType) {
     case 'shot':
-      return `${RESULT_LABELS[event.eventData.result]} · zona ${event.eventData.zone}`;
+      return `${RESULT_LABELS[event.eventData.result]}${event.eventData.context === 'penalty' ? ' · penalti' : ''}`;
     case 'gk_shot':
       return `${RESULT_LABELS[event.eventData.result]} · zona ${event.eventData.zone}${
         event.eventData.context === 'penalty' ? ' · penalti' : ''

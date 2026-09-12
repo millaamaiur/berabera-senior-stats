@@ -61,6 +61,7 @@ export type Zone = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export interface FieldShotEventData {
   result: 'goal' | 'miss';
   zone: Zone;
+  context: 'open_play' | 'penalty';
 }
 
 export interface GkShotEventData {

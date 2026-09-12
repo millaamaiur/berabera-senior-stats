@@ -12,14 +12,20 @@ const FIELD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
   { type: 'recovery', label: 'Recuperación' },
   { type: 'steps', label: 'Pasos' },
   { type: 'assist', label: 'Asistencia' },
+];
+
+const CARD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
   { type: 'card_yellow', label: 'Amarilla' },
   { type: 'card_red', label: 'Roja' },
   { type: 'card_blue', label: 'Azul' },
   { type: 'exclusion_2min', label: '2 minutos' },
 ];
 
-type ShotFlow = { kind: 'field' } | { kind: 'gk'; context: 'open_play' | 'penalty' };
-type Step = { flow: ShotFlow; result?: 'goal' | 'miss' | 'save' } | null;
+type ShotFlow = { kind: 'field'; context: 'open_play' | 'penalty' } | { kind: 'gk'; context: 'open_play' | 'penalty' };
+type Step =
+  | { kind: 'shot'; flow: ShotFlow; result?: 'goal' | 'miss' | 'save' }
+  | { kind: 'card' }
+  | null;
 
 export function ActionPanel({ player }: ActionPanelProps) {
   const recordSimpleEvent = useLiveMatchStore((s) => s.recordSimpleEvent);
@@ -41,25 +47,25 @@ export function ActionPanel({ player }: ActionPanelProps) {
   }
 
   function startShot(flow: ShotFlow) {
-    setStep({ flow });
+    setStep({ kind: 'shot', flow });
   }
 
   function chooseResult(result: 'goal' | 'miss' | 'save') {
-    if (!step) return;
+    if (!step || step.kind !== 'shot') return;
     setStep({ ...step, result });
   }
 
   async function chooseZone(zone: Zone) {
-    if (!step || !step.result) return;
+    if (!step || step.kind !== 'shot' || !step.result) return;
     if (step.flow.kind === 'field') {
-      await recordShot(player.id, { result: step.result as 'goal' | 'miss', zone });
+      await recordShot(player.id, { result: step.result as 'goal' | 'miss', zone, context: step.flow.context });
     } else {
       await recordGkShot(player.id, { result: step.result as 'save' | 'goal', zone, context: step.flow.context });
     }
     finishAndReset();
   }
 
-  if (step && !step.result) {
+  if (step?.kind === 'shot' && !step.result) {
     const options = step.flow.kind === 'field' ? (['goal', 'miss'] as const) : (['save', 'goal'] as const);
     const labels: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada' };
     return (
@@ -84,11 +90,27 @@ export function ActionPanel({ player }: ActionPanelProps) {
     );
   }
 
-  if (step && step.result) {
+  if (step?.kind === 'shot' && step.result) {
     return (
       <div className="flex flex-col items-center gap-3">
         <p className="text-lg font-semibold text-white">¿Zona de portería?</p>
         <ShotGrid3x3 onSelectZone={chooseZone} />
+        <button type="button" onClick={() => setStep(null)} className="text-sm text-slate-400 underline">
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
+  if (step?.kind === 'card') {
+    return (
+      <div className="flex flex-col items-center gap-4">
+        <p className="text-lg font-semibold text-white">¿Qué amonestación?</p>
+        <div className="grid grid-cols-2 gap-3">
+          {CARD_ACTIONS.map((a) => (
+            <ActionButton key={a.type} label={a.label} onClick={() => handleSimple(a.type)} />
+          ))}
+        </div>
         <button type="button" onClick={() => setStep(null)} className="text-sm text-slate-400 underline">
           Cancelar
         </button>
@@ -105,10 +127,12 @@ export function ActionPanel({ player }: ActionPanelProps) {
         </>
       ) : (
         <>
-          <ActionButton label="Lanzamiento" onClick={() => startShot({ kind: 'field' })} />
+          <ActionButton label="Lanzamiento" onClick={() => startShot({ kind: 'field', context: 'open_play' })} />
+          <ActionButton label="Penalti" onClick={() => startShot({ kind: 'field', context: 'penalty' })} />
           {FIELD_ACTIONS.map((a) => (
             <ActionButton key={a.type} label={a.label} onClick={() => handleSimple(a.type)} />
           ))}
+          <ActionButton label="Amonestación" onClick={() => setStep({ kind: 'card' })} />
         </>
       )}
     </div>

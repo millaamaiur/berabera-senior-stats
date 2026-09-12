@@ -38,6 +38,15 @@ interface LiveMatchState {
 
   /** Returns false when the move is rejected (e.g. the 6+1 court limit is already full). */
   toggleCourt: (playerId: string) => Promise<boolean>;
+  /**
+   * Applies a whole substitution (any number of exits + entries) as one atomic
+   * batch sharing a single timestamp, so the timeline can always pair them up
+   * into a single "cambio" row — unlike calling toggleCourt in a loop, where
+   * each write's network round-trip could push the elapsed-seconds reading
+   * into the next second and silently break the pairing.
+   * Returns the ids from `inIds` that couldn't find a free spot.
+   */
+  confirmSubstitution: (outIds: string[], inIds: string[]) => Promise<string[]>;
   recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
   recordGkShot: (playerId: string, eventData: GkShotEventData) => Promise<void>;
@@ -204,6 +213,62 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const eventData: CourtChangeEventData = { action: entering ? 'enter' : 'exit' };
     await pushEvent(get, set, match, playerId, 'court_change', eventData);
     return true;
+  },
+
+  confirmSubstitution: async (outIds: string[], inIds: string[]) => {
+    const { match, events, getElapsedSeconds } = get();
+    if (!match) return [];
+    const timestamp = Math.floor(getElapsedSeconds());
+
+    const newEvents: MatchEvent[] = outIds.map(
+      (id) =>
+        ({
+          id: createId('evt'),
+          matchId: match.id,
+          playerId: id,
+          timestamp,
+          eventType: 'court_change',
+          eventData: { action: 'exit' },
+        }) as MatchEvent
+    );
+
+    // Validate entries against the roster as it stands right after the exits
+    // above (not the live "current" on-court set), so a same-batch swap (e.g.
+    // goalkeeper out + goalkeeper in) always sees the freed slot.
+    const onCourtAfterExits = getCurrentOnCourt(events);
+    for (const id of outIds) onCourtAfterExits.delete(id);
+    const players = useAppData.getState().players;
+    const rejected: string[] = [];
+
+    for (const id of inIds) {
+      const player = players.find((p) => p.id === id);
+      if (player) {
+        const sameKindOnCourt = players.filter((p) => onCourtAfterExits.has(p.id) && p.position === player.position).length;
+        if (sameKindOnCourt >= COURT_LIMITS[player.position]) {
+          rejected.push(id);
+          continue;
+        }
+        onCourtAfterExits.add(id);
+      }
+      newEvents.push({
+        id: createId('evt'),
+        matchId: match.id,
+        playerId: id,
+        timestamp,
+        eventType: 'court_change',
+        eventData: { action: 'enter' },
+      } as MatchEvent);
+    }
+
+    const { events: currentEvents, undoStack } = get();
+    set({
+      events: [...currentEvents, ...newEvents],
+      undoStack: [...undoStack, ...newEvents.map((e) => e.id)],
+    });
+    for (const event of newEvents) {
+      await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
+    }
+    return rejected;
   },
 
   recordSimpleEvent: async (playerId, eventType) => {

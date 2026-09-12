@@ -64,7 +64,7 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
     if (target.kind !== 'single' || !draftResult) return;
     const event = target.event;
     if (event.eventType === 'shot') {
-      await onUpdateEvent({ ...event, eventData: { result: draftResult as 'goal' | 'miss', zone } });
+      await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'goal' | 'miss', zone } });
       onClose();
     } else if (event.eventType === 'gk_shot') {
       await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'save' | 'goal', zone } });

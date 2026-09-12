@@ -6,15 +6,16 @@ import { COURT_LIMITS } from '../stores/useLiveMatchStore';
 interface SubstitutionModalProps {
   onCourtPlayers: Player[];
   benchPlayers: Player[];
-  onToggleCourt: (playerId: string) => Promise<boolean>;
+  onConfirm: (outIds: string[], inIds: string[]) => Promise<string[]>;
   onClose: () => void;
 }
 
 /**
  * Pick who leaves the court and who comes in from the bench, then apply the
- * whole swap at once — exits first (freeing slots), then entries.
+ * whole swap at once — as a single atomic batch sharing one timestamp, so it
+ * always shows up as one paired "cambio" in the timeline.
  */
-export function SubstitutionModal({ onCourtPlayers, benchPlayers, onToggleCourt, onClose }: SubstitutionModalProps) {
+export function SubstitutionModal({ onCourtPlayers, benchPlayers, onConfirm, onClose }: SubstitutionModalProps) {
   const [outIds, setOutIds] = useState<Set<string>>(new Set());
   const [inIds, setInIds] = useState<Set<string>>(new Set());
   const { message, show } = useTimedMessage(2500);
@@ -52,14 +53,7 @@ export function SubstitutionModal({ onCourtPlayers, benchPlayers, onToggleCourt,
       return;
     }
 
-    for (const id of outIds) {
-      await onToggleCourt(id);
-    }
-    const rejected: string[] = [];
-    for (const id of inIds) {
-      const ok = await onToggleCourt(id);
-      if (!ok) rejected.push(id);
-    }
+    const rejected = await onConfirm([...outIds], [...inIds]);
     if (rejected.length > 0) {
       show('Algún jugador no ha podido entrar: no había hueco libre en su posición');
       return;

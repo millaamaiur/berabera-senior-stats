@@ -57,10 +57,14 @@ export function computeTeamSeasonStats(matches: Match[], events: MatchEvent[]): 
 }
 
 export interface FieldPlayerStats {
+  /** Open play + penalties combined. */
   shots: number;
   goals: number;
   misses: number;
   shotPct: number;
+  penaltiesTaken: number;
+  penaltiesScored: number;
+  penaltyScorePct: number;
   assists: number;
   turnovers: number;
   recoveries: number;
@@ -73,14 +77,19 @@ export interface FieldPlayerStats {
 
 export function computeFieldPlayerStats(events: MatchEvent[], playerId: string): FieldPlayerStats {
   const own = events.filter((e) => e.playerId === playerId);
-  const shots = own.filter((e) => e.eventType === 'shot');
-  const goals = shots.filter((e) => e.eventType === 'shot' && e.eventData.result === 'goal').length;
+  const shots = own.filter((e): e is Extract<MatchEvent, { eventType: 'shot' }> => e.eventType === 'shot');
+  const penalties = shots.filter((e) => e.eventData.context === 'penalty');
+  const goals = shots.filter((e) => e.eventData.result === 'goal').length;
+  const penaltiesScored = penalties.filter((e) => e.eventData.result === 'goal').length;
   const shotsCount = shots.length;
   return {
     shots: shotsCount,
     goals,
     misses: shotsCount - goals,
     shotPct: shotsCount ? Math.round((goals / shotsCount) * 100) : 0,
+    penaltiesTaken: penalties.length,
+    penaltiesScored,
+    penaltyScorePct: penalties.length ? Math.round((penaltiesScored / penalties.length) * 100) : 0,
     assists: own.filter((e) => e.eventType === 'assist').length,
     turnovers: own.filter((e) => e.eventType === 'turnover').length,
     recoveries: own.filter((e) => e.eventType === 'recovery').length,

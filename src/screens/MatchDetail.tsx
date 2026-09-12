@@ -1,18 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
-import {
-  computeDefensiveOnCourtStats,
-  computeFieldPlayerStats,
-  computeGoalkeeperStats,
-  computeMatchScore,
-  matchOutcome,
-} from '../stats/matchStats';
-import { computeMinutesPlayed } from '../stats/onCourt';
+import { computeMatchScore, matchOutcome } from '../stats/matchStats';
 import { buildTimeline } from '../stats/timeline';
 import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock, formatDate } from '../utils/time';
-import { PlayerAvatar } from '../components/PlayerAvatar';
+import { MatchRosterTable } from '../components/MatchRosterTable';
 import { EditSquadModal } from '../components/EditSquadModal';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { updateEventAndReload, deleteEventAndReload } from '../stores/eventActions';
@@ -77,66 +70,7 @@ export function MatchDetail() {
             </button>
           )}
         </div>
-        <div className="overflow-x-auto rounded-xl border-2 border-slate-700">
-          <table className="w-full text-left text-sm text-white">
-            <thead className="bg-slate-800 text-slate-300">
-              <tr>
-                <th className="p-2">Jugador</th>
-                <th className="p-2 text-right">Minutos</th>
-                <th className="p-2 text-right">Goles/Lanz.</th>
-                <th className="p-2 text-right">Otros</th>
-                <th className="p-2 text-right">GC en pista</th>
-                <th className="p-2 text-right">% Def.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roster.map((p) => {
-                const minutes = computeMinutesPlayed(matchEvents, p.id, match.clock.elapsedSeconds);
-                const def = computeDefensiveOnCourtStats(matchEvents, p.id);
-                if (p.position === 'goalkeeper') {
-                  const gk = computeGoalkeeperStats(matchEvents, p.id);
-                  return (
-                    <tr key={p.id} className="border-t border-slate-700 odd:bg-slate-900 even:bg-slate-800/60">
-                      <td className="p-2">
-                        <Link to={`/jugadores/${p.id}`} className="flex items-center gap-2 font-semibold text-amber-400">
-                          <PlayerAvatar playerId={p.id} name={p.name} className="h-8 w-8" />
-                          {p.name}
-                        </Link>
-                      </td>
-                      <td className="p-2 text-right">{formatClock(minutes)}</td>
-                      <td className="p-2 text-right">
-                        {gk.saves}/{gk.shotsFaced} paradas
-                      </td>
-                      <td className="p-2 text-right">{gk.penaltiesSaved}/{gk.penaltiesFaced} penaltis parados</td>
-                      <td className="p-2 text-right">{def.goalsAgainst}</td>
-                      <td className="p-2 text-right">{def.attacksFaced ? `${def.stopPct}%` : '—'}</td>
-                    </tr>
-                  );
-                }
-                const fs = computeFieldPlayerStats(matchEvents, p.id);
-                return (
-                  <tr key={p.id} className="border-t border-slate-700 odd:bg-slate-900 even:bg-slate-800/60">
-                    <td className="p-2">
-                      <Link to={`/jugadores/${p.id}`} className="flex items-center gap-2 font-semibold text-amber-400">
-                        <PlayerAvatar playerId={p.id} name={p.name} className="h-8 w-8" />
-                        {p.name}
-                      </Link>
-                    </td>
-                    <td className="p-2 text-right">{formatClock(minutes)}</td>
-                    <td className="p-2 text-right">
-                      {fs.goals}/{fs.shots}
-                    </td>
-                    <td className="p-2 text-right">
-                      {fs.turnovers} pérd. · {fs.assists} asist. · {fs.recoveries} recup.
-                    </td>
-                    <td className="p-2 text-right">{def.goalsAgainst}</td>
-                    <td className="p-2 text-right">{def.attacksFaced ? `${def.stopPct}%` : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <MatchRosterTable roster={roster} matchEvents={matchEvents} elapsedSeconds={match.clock.elapsedSeconds} />
       </section>
 
       <section>
