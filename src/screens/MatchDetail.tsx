@@ -107,7 +107,7 @@ export function MatchDetail() {
                       <td className="p-2 text-right">
                         {gk.saves}/{gk.shotsFaced} paradas
                       </td>
-                      <td className="p-2 text-right">{gk.penaltiesSaved}/{gk.penaltiesFaced} penaltis</td>
+                      <td className="p-2 text-right">{gk.penaltiesSaved}/{gk.penaltiesFaced} penaltis parados</td>
                       <td className="p-2 text-right">{def.goalsAgainst}</td>
                       <td className="p-2 text-right">{def.attacksFaced ? `${def.stopPct}%` : '—'}</td>
                     </tr>

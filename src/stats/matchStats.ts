@@ -93,10 +93,16 @@ export function computeFieldPlayerStats(events: MatchEvent[], playerId: string):
 }
 
 export interface GoalkeeperStats {
+  /** Open play + penalties combined — this is what should always match the team's real goals-against. */
   shotsFaced: number;
   saves: number;
   goalsConceded: number;
   savePct: number;
+  /** Open-play-only breakdown, for whoever wants shot-stopping numbers without penalties mixed in. */
+  openPlayShotsFaced: number;
+  openPlaySaves: number;
+  openPlayGoalsConceded: number;
+  openPlaySavePct: number;
   penaltiesFaced: number;
   penaltiesSaved: number;
   penaltiesConceded: number;
@@ -109,15 +115,22 @@ export function computeGoalkeeperStats(events: MatchEvent[], playerId: string): 
   );
   const openPlay = own.filter((e) => e.eventData.context === 'open_play');
   const penalties = own.filter((e) => e.eventData.context === 'penalty');
-  const saves = openPlay.filter((e) => e.eventData.result === 'save').length;
-  const goalsConceded = openPlay.filter((e) => e.eventData.result === 'goal').length;
+  const openPlaySaves = openPlay.filter((e) => e.eventData.result === 'save').length;
+  const openPlayGoalsConceded = openPlay.filter((e) => e.eventData.result === 'goal').length;
   const penaltiesSaved = penalties.filter((e) => e.eventData.result === 'save').length;
   const penaltiesConceded = penalties.filter((e) => e.eventData.result === 'goal').length;
+  const shotsFaced = openPlay.length + penalties.length;
+  const saves = openPlaySaves + penaltiesSaved;
+  const goalsConceded = openPlayGoalsConceded + penaltiesConceded;
   return {
-    shotsFaced: openPlay.length,
+    shotsFaced,
     saves,
     goalsConceded,
-    savePct: openPlay.length ? Math.round((saves / openPlay.length) * 100) : 0,
+    savePct: shotsFaced ? Math.round((saves / shotsFaced) * 100) : 0,
+    openPlayShotsFaced: openPlay.length,
+    openPlaySaves,
+    openPlayGoalsConceded,
+    openPlaySavePct: openPlay.length ? Math.round((openPlaySaves / openPlay.length) * 100) : 0,
     penaltiesFaced: penalties.length,
     penaltiesSaved,
     penaltiesConceded,
