@@ -12,6 +12,7 @@ import type {
 import { HALFTIME_SECONDS } from '../domain/types';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { useAppData } from './useAppData';
+import { writeOrQueue } from '../data/offline/queue';
 
 /** A handball side can only ever have 6 court players + 1 goalkeeper on the field at once. */
 export const COURT_LIMITS = { player: 6, goalkeeper: 1 } as const;
@@ -47,8 +48,13 @@ interface LiveMatchState {
   syncGlobalData: () => Promise<void>;
 }
 
+/**
+ * Persists a match. Never throws: with no connection this queues the write and
+ * retries later, so the caller (which always updates local state first) never
+ * has to care whether the network is actually up right now.
+ */
 async function persistMatch(match: Match): Promise<void> {
-  await dataProvider.matches.upsert(match);
+  await writeOrQueue({ collection: 'matches', method: 'upsert', payload: match }, () => dataProvider.matches.upsert(match));
 }
 
 export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
@@ -60,19 +66,29 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
 
   loadMatch: async (matchId: string) => {
     set({ loading: true });
-    const [match, events] = await Promise.all([
-      dataProvider.matches.getById(matchId),
-      dataProvider.events.getByMatch(matchId),
-    ]);
+    let match: Match | null | undefined;
+    let events: MatchEvent[];
+    try {
+      [match, events] = await Promise.all([
+        dataProvider.matches.getById(matchId),
+        dataProvider.events.getByMatch(matchId),
+      ]);
+    } catch {
+      // No connection (or the request otherwise failed) — fall back to whatever
+      // app data is already loaded/cached, so an offline scorer can still open
+      // and keep recording a match they'd already loaded once.
+      const cached = useAppData.getState();
+      match = cached.matches.find((m) => m.id === matchId) ?? null;
+      events = cached.events.filter((e) => e.matchId === matchId);
+    }
     if (!match) {
       set({ loading: false, match: null, events: [] });
       return;
     }
-    if (match.status === 'scheduled') {
-      match.status = 'live';
-      await persistMatch(match);
-    }
+    const wasScheduled = match.status === 'scheduled';
+    if (wasScheduled) match = { ...match, status: 'live' };
     set({ match, events, selectedPlayerId: null, undoStack: [], loading: false });
+    if (wasScheduled) await persistMatch(match);
   },
 
   clear: () => set({ match: null, events: [], selectedPlayerId: null, undoStack: [] }),
@@ -101,8 +117,8 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
         secondHalfStarted: match.clock.halftimeReached ? true : match.clock.secondHalfStarted,
       },
     };
-    await persistMatch(updated);
     set({ match: updated });
+    await persistMatch(updated);
   },
 
   pauseClock: async () => {
@@ -113,8 +129,8 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
       ...match,
       clock: { ...match.clock, elapsedSeconds, running: false, lastStartedAt: null },
     };
-    await persistMatch(updated);
     set({ match: updated });
+    await persistMatch(updated);
   },
 
   resetClock: async () => {
@@ -131,8 +147,8 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
         secondHalfStarted: false,
       },
     };
-    await persistMatch(updated);
     set({ match: updated });
+    await persistMatch(updated);
   },
 
   /** Auto-pauses the clock the moment it crosses the 30-minute mark, once per match. */
@@ -150,16 +166,16 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
         halftimeReached: true,
       },
     };
-    await persistMatch(updated);
     set({ match: updated });
+    await persistMatch(updated);
   },
 
   updateCalledPlayers: async (calledPlayerIds: string[]) => {
     const { match } = get();
     if (!match) return;
     const updated: Match = { ...match, calledPlayerIds };
-    await persistMatch(updated);
     set({ match: updated });
+    await persistMatch(updated);
     await useAppData.getState().reload();
   },
 
@@ -167,8 +183,8 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const { match } = get();
     if (!match) return;
     const updated: Match = { ...match, date };
-    await persistMatch(updated);
     set({ match: updated });
+    await persistMatch(updated);
     await useAppData.getState().reload();
   },
 
@@ -212,23 +228,23 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const { undoStack, events } = get();
     const lastId = undoStack[undoStack.length - 1];
     if (!lastId) return;
-    await dataProvider.events.delete(lastId);
     set({
       events: events.filter((e) => e.id !== lastId),
       undoStack: undoStack.slice(0, -1),
     });
+    await writeOrQueue({ collection: 'events', method: 'delete', payload: lastId }, () => dataProvider.events.delete(lastId));
   },
 
   updateEvent: async (event: MatchEvent) => {
-    await dataProvider.events.update(event);
     const { events } = get();
     set({ events: events.map((e) => (e.id === event.id ? event : e)) });
+    await writeOrQueue({ collection: 'events', method: 'update', payload: event }, () => dataProvider.events.update(event));
   },
 
   deleteEvent: async (id: string) => {
-    await dataProvider.events.delete(id);
     const { events, undoStack } = get();
     set({ events: events.filter((e) => e.id !== id), undoStack: undoStack.filter((eid) => eid !== id) });
+    await writeOrQueue({ collection: 'events', method: 'delete', payload: id }, () => dataProvider.events.delete(id));
   },
 
   syncGlobalData: async () => {
@@ -254,7 +270,7 @@ async function pushEvent(
     eventData,
   } as MatchEvent;
 
-  await dataProvider.events.add(event);
   const { events, undoStack } = get();
   set({ events: [...events, event], undoStack: [...undoStack, event.id] });
+  await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
 }

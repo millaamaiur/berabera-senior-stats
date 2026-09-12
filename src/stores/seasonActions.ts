@@ -2,14 +2,11 @@ import { dataProvider, seasonNameForDate } from '../data';
 import type { Season } from '../domain/types';
 import { createId } from '../utils/id';
 import { useAppData, activeSeason } from './useAppData';
+import { writeOrQueue } from '../data/offline/queue';
 
 /** Closes the current season (if any) and opens a fresh one starting today. */
 export async function closeSeasonAndStartNext(): Promise<void> {
-  const seasons = await dataProvider.seasons.getAll();
-  const current = activeSeason(seasons);
-  if (current) {
-    await dataProvider.seasons.upsert({ ...current, closedAt: Date.now() });
-  }
+  const current = activeSeason(useAppData.getState().seasons);
 
   const next: Season = {
     id: createId('season'),
@@ -17,6 +14,16 @@ export async function closeSeasonAndStartNext(): Promise<void> {
     startDate: new Date().toISOString().slice(0, 10),
     closedAt: null,
   };
-  await dataProvider.seasons.upsert(next);
-  await useAppData.getState().reload();
+
+  const closedCurrent = current ? { ...current, closedAt: Date.now() } : null;
+  useAppData.setState((s) => ({
+    seasons: [...s.seasons.map((se) => (closedCurrent && se.id === closedCurrent.id ? closedCurrent : se)), next],
+  }));
+
+  if (closedCurrent) {
+    await writeOrQueue({ collection: 'seasons', method: 'upsert', payload: closedCurrent }, () =>
+      dataProvider.seasons.upsert(closedCurrent)
+    );
+  }
+  await writeOrQueue({ collection: 'seasons', method: 'upsert', payload: next }, () => dataProvider.seasons.upsert(next));
 }

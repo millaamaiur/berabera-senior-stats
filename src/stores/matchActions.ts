@@ -2,6 +2,7 @@ import { dataProvider } from '../data';
 import type { Match } from '../domain/types';
 import { createId } from '../utils/id';
 import { useAppData, activeSeason } from './useAppData';
+import { writeOrQueue } from '../data/offline/queue';
 
 export interface NewMatchInput {
   opponent: string;
@@ -12,8 +13,9 @@ export interface NewMatchInput {
 }
 
 export async function createMatch(input: NewMatchInput): Promise<Match> {
-  const seasons = await dataProvider.seasons.getAll();
-  const season = activeSeason(seasons);
+  // Reads the already-loaded season instead of a fresh network call, so this
+  // works the moment the app has loaded once, connection or not.
+  const season = activeSeason(useAppData.getState().seasons);
 
   const match: Match = {
     id: createId('match'),
@@ -27,35 +29,43 @@ export async function createMatch(input: NewMatchInput): Promise<Match> {
     createdAt: Date.now(),
     seasonId: season?.id ?? '',
   };
-  await dataProvider.matches.upsert(match);
-  await useAppData.getState().reload();
+  useAppData.setState((s) => ({ matches: [...s.matches, match] }));
+  await writeOrQueue({ collection: 'matches', method: 'upsert', payload: match }, () => dataProvider.matches.upsert(match));
   return match;
 }
 
 export async function finishMatch(match: Match): Promise<void> {
-  await dataProvider.matches.upsert({
+  const updated: Match = {
     ...match,
     status: 'finished',
     clock: { ...match.clock, running: false, lastStartedAt: null },
-  });
-  await useAppData.getState().reload();
+  };
+  useAppData.setState((s) => ({ matches: s.matches.map((m) => (m.id === updated.id ? updated : m)) }));
+  await writeOrQueue({ collection: 'matches', method: 'upsert', payload: updated }, () => dataProvider.matches.upsert(updated));
 }
 
 export async function deleteMatch(id: string): Promise<void> {
-  await dataProvider.matches.delete(id);
-  await useAppData.getState().reload();
+  useAppData.setState((s) => ({
+    matches: s.matches.filter((m) => m.id !== id),
+    events: s.events.filter((e) => e.matchId !== id),
+  }));
+  await writeOrQueue({ collection: 'matches', method: 'delete', payload: id }, () => dataProvider.matches.delete(id));
 }
 
 /** Wipes every recorded event and sends the match back to 'scheduled', as if it had never started. */
 export async function cancelMatch(match: Match): Promise<void> {
-  const events = await dataProvider.events.getByMatch(match.id);
-  for (const event of events) {
-    await dataProvider.events.delete(event.id);
-  }
-  await dataProvider.matches.upsert({
+  const updated: Match = {
     ...match,
     status: 'scheduled',
     clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false, halftimeReached: false, secondHalfStarted: false },
-  });
-  await useAppData.getState().reload();
+  };
+  const eventsToDelete = useAppData.getState().events.filter((e) => e.matchId === match.id);
+  useAppData.setState((s) => ({
+    matches: s.matches.map((m) => (m.id === updated.id ? updated : m)),
+    events: s.events.filter((e) => e.matchId !== match.id),
+  }));
+  for (const event of eventsToDelete) {
+    await writeOrQueue({ collection: 'events', method: 'delete', payload: event.id }, () => dataProvider.events.delete(event.id));
+  }
+  await writeOrQueue({ collection: 'matches', method: 'upsert', payload: updated }, () => dataProvider.matches.upsert(updated));
 }

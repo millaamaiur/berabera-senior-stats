@@ -2,6 +2,7 @@ import { dataProvider } from '../data';
 import { numberRangeFor, type Player, type Position } from '../domain/types';
 import { createId } from '../utils/id';
 import { useAppData } from './useAppData';
+import { writeOrQueue } from '../data/offline/queue';
 
 /** Returns an error message when the number is out of range or already used, otherwise null. */
 export function validatePlayerNumber(
@@ -37,13 +38,13 @@ export async function createPlayer(name: string, position: Position, number: num
     number,
     active: true,
   };
-  await dataProvider.players.upsert(player);
-  await useAppData.getState().reload();
+  useAppData.setState((s) => ({ players: [...s.players, player] }));
+  await writeOrQueue({ collection: 'players', method: 'upsert', payload: player }, () => dataProvider.players.upsert(player));
 }
 
 export async function updatePlayer(player: Player): Promise<void> {
-  await dataProvider.players.upsert(player);
-  await useAppData.getState().reload();
+  useAppData.setState((s) => ({ players: s.players.map((p) => (p.id === player.id ? player : p)) }));
+  await writeOrQueue({ collection: 'players', method: 'upsert', payload: player }, () => dataProvider.players.upsert(player));
 }
 
 export async function toggleActive(player: Player): Promise<void> {

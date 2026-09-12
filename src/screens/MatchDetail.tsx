@@ -17,6 +17,7 @@ import { EditSquadModal } from '../components/EditSquadModal';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { updateEventAndReload, deleteEventAndReload } from '../stores/eventActions';
 import { dataProvider } from '../data';
+import { writeOrQueue } from '../data/offline/queue';
 import { useAuthStore } from '../stores/useAuthStore';
 
 export function MatchDetail() {
@@ -43,8 +44,9 @@ export function MatchDetail() {
   const lockedPlayerIds = new Set([...onCourtIdsAtEnd, ...matchEvents.map((e) => e.playerId)]);
 
   async function handleSaveSquad(calledPlayerIds: string[]) {
-    await dataProvider.matches.upsert({ ...match!, calledPlayerIds });
-    await useAppData.getState().reload();
+    const updated = { ...match!, calledPlayerIds };
+    useAppData.setState((s) => ({ matches: s.matches.map((m) => (m.id === updated.id ? updated : m)) }));
+    await writeOrQueue({ collection: 'matches', method: 'upsert', payload: updated }, () => dataProvider.matches.upsert(updated));
   }
 
   return (

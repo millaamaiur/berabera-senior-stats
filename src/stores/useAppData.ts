@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { dataProvider } from '../data';
 import type { Match, MatchEvent, Player, Season } from '../domain/types';
+import { loadSnapshot, saveSnapshot } from '../data/offline/snapshot';
 
 interface AppDataState {
   players: Player[];
@@ -25,10 +26,20 @@ export const useAppData = create<AppDataState>((set) => ({
         dataProvider.events.getAll(),
         dataProvider.seasons.getAll(),
       ]);
+      saveSnapshot('players', players);
+      saveSnapshot('matches', matches);
+      saveSnapshot('events', events);
+      saveSnapshot('seasons', seasons);
       set({ players, matches, events, seasons, loaded: true });
     } catch (error) {
-      console.error('Failed to load app data', error);
-      set({ loaded: true });
+      console.error('Failed to load app data, falling back to the last local snapshot', error);
+      set({
+        players: loadSnapshot<Player>('players'),
+        matches: loadSnapshot<Match>('matches'),
+        events: loadSnapshot<MatchEvent>('events'),
+        seasons: loadSnapshot<Season>('seasons'),
+        loaded: true,
+      });
     }
   },
 }));

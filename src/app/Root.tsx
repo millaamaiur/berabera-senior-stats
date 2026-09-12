@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { NavBar } from '../components/NavBar';
 import { useAppData } from '../stores/useAppData';
 import { useAuthStore } from '../stores/useAuthStore';
+import { initOfflineSync } from '../data/offline/queue';
 
 export function Root() {
   const reload = useAppData((s) => s.reload);
@@ -12,6 +13,7 @@ export function Root() {
   useEffect(() => {
     reload();
     initAuth();
+    initOfflineSync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
