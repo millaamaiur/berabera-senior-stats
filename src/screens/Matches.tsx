@@ -5,14 +5,11 @@ import { deleteMatch } from '../stores/matchActions';
 import { daysUntil, formatDate } from '../utils/time';
 import type { Match } from '../domain/types';
 import { useConfirmDialog } from '../components/ConfirmDialog';
+import { Badge } from '../components/Badge';
 import { useAuthStore } from '../stores/useAuthStore';
 
 const OUTCOME_LABEL: Record<string, string> = { win: 'V', loss: 'D', draw: 'E' };
-const OUTCOME_COLOR: Record<string, string> = {
-  win: 'text-emerald-400 border-emerald-500',
-  loss: 'text-rose-400 border-rose-500',
-  draw: 'text-slate-300 border-slate-500',
-};
+const OUTCOME_COLOR: Record<string, 'emerald' | 'rose' | 'slate'> = { win: 'emerald', loss: 'rose', draw: 'slate' };
 
 function scheduleLabel(match: Match): string {
   const days = daysUntil(match.date);
@@ -62,15 +59,15 @@ export function Matches() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 pt-6 sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white">Partidos</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight text-white">Partidos</h2>
         {unlocked && (
           <Link
             to="/partidos/nuevo"
-            className="rounded-lg border-2 border-amber-500 bg-amber-500/10 px-3 py-2 font-semibold text-amber-400"
+            className="rounded-full bg-amber-500 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/20 transition-transform touch-manipulation active:scale-95"
           >
-            + Nuevo partido
+            + Nuevo
           </Link>
         )}
       </div>
@@ -82,30 +79,27 @@ export function Matches() {
           const outcome = matchOutcome(goalsFor, goalsAgainst);
           const to = match.status === 'finished' ? `/partidos/${match.id}` : `/anotar/${match.id}`;
           return (
-            <div key={match.id} className="flex items-center gap-2 rounded-xl border-2 border-slate-700 bg-slate-800 p-3 text-white">
-              <Link to={to} className="flex flex-1 items-center justify-between gap-3 min-w-0">
+            <div
+              key={match.id}
+              className="flex items-center gap-2 rounded-2xl bg-white/5 p-3 text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]"
+            >
+              <Link to={to} className="flex min-w-0 flex-1 items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{match.opponent}</p>
+                  <p className="truncate font-bold">{match.opponent}</p>
                   <p className="text-sm text-slate-400">
                     {formatDate(match.date)} · {match.competition} · {match.isHome ? 'Casa' : 'Fuera'}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-xl font-bold">
+                  <span className="text-xl font-extrabold">
                     {goalsFor} - {goalsAgainst}
                   </span>
                   {match.status === 'finished' ? (
-                    <span className={`rounded-full border-2 px-2 py-1 text-xs font-bold ${OUTCOME_COLOR[outcome]}`}>
-                      {OUTCOME_LABEL[outcome]}
-                    </span>
+                    <Badge color={OUTCOME_COLOR[outcome]}>{OUTCOME_LABEL[outcome]}</Badge>
                   ) : match.clock.hasStartedOnce ? (
-                    <span className="rounded-full border-2 border-amber-500 px-2 py-1 text-xs font-bold text-amber-400">
-                      EN VIVO
-                    </span>
+                    <Badge color="amber">EN VIVO</Badge>
                   ) : (
-                    <span className="rounded-full border-2 border-slate-500 px-2 py-1 text-xs font-bold text-slate-300">
-                      {scheduleLabel(match)}
-                    </span>
+                    <Badge color="slate">{scheduleLabel(match)}</Badge>
                   )}
                 </div>
               </Link>
@@ -114,7 +108,7 @@ export function Matches() {
                   type="button"
                   onClick={() => handleDelete(match)}
                   aria-label={`Eliminar partido contra ${match.opponent}`}
-                  className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400"
+                  className="shrink-0 rounded-full p-2 text-slate-500 active:bg-rose-500/10 active:text-rose-400"
                 >
                   <TrashIcon />
                 </button>
@@ -122,7 +116,7 @@ export function Matches() {
             </div>
           );
         })}
-        {sorted.length === 0 && <p className="text-slate-400">Todavía no hay partidos.</p>}
+        {sorted.length === 0 && <p className="p-2 text-slate-400">Todavía no hay partidos.</p>}
       </div>
       {dialog}
     </div>

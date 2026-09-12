@@ -77,7 +77,7 @@ export function ActionPanel({ player }: ActionPanelProps) {
               key={opt}
               type="button"
               onClick={() => chooseResult(opt)}
-              className="h-20 min-w-32 rounded-xl border-4 border-slate-500 bg-slate-700 text-xl font-bold text-white active:bg-slate-600"
+              className="h-20 min-w-32 rounded-2xl bg-white/8 text-xl font-bold text-white shadow-md ring-1 ring-white/10 transition-transform active:scale-95 active:bg-white/12"
             >
               {labels[opt]}
             </button>
@@ -144,7 +144,7 @@ function ActionButton({ label, onClick }: { label: string; onClick: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="h-20 rounded-xl border-4 border-slate-500 bg-slate-700 text-lg font-bold text-white shadow active:bg-slate-600 touch-manipulation"
+      className="h-20 rounded-2xl bg-white/8 text-lg font-bold text-white shadow-md ring-1 ring-white/10 transition-transform touch-manipulation active:scale-95 active:bg-white/12"
     >
       {label}
     </button>

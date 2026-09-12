@@ -27,13 +27,13 @@ export function LineupPicker({ calledPlayers, onCourtIds, onToggleCourt }: Lineu
   }
 
   return (
-    <div className="flex shrink-0 flex-col gap-3 rounded-xl border-2 border-amber-500/40 bg-slate-800 p-3">
+    <div className="flex shrink-0 flex-col gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-amber-500/30">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-lg font-bold text-white">Elige la alineación inicial</p>
           <p className="text-sm text-slate-400">Toca a los jugadores que empiezan en pista (6 + portero)</p>
         </div>
-        <span className="rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-amber-300">
+        <span className="rounded-full bg-black/30 px-3 py-1 text-sm font-semibold text-amber-300">
           Titulares: {fieldCount}/{COURT_LIMITS.player} + {gkCount}/{COURT_LIMITS.goalkeeper} portero
         </span>
       </div>
@@ -70,12 +70,12 @@ function PlayerGroup({
               onClick={() => onTap(player)}
               aria-label={`${player.name}${selected ? ', titular' : ''}`}
               className={[
-                'flex h-12 items-center justify-center gap-1.5 rounded-lg border-2 px-3 font-bold touch-manipulation',
+                'flex h-12 items-center justify-center gap-1.5 rounded-full px-3 font-bold ring-1 transition-transform touch-manipulation active:scale-95',
                 selected
-                  ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-400'
+                  ? 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-400'
                   : player.position === 'goalkeeper'
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-300'
-                    : 'border-slate-500 bg-slate-700 text-white',
+                    ? 'bg-sky-500/10 text-sky-300 ring-sky-500/40'
+                    : 'bg-white/5 text-white ring-white/10',
               ].join(' ')}
             >
               <span className="text-slate-400">{player.number}</span>

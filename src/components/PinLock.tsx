@@ -24,7 +24,7 @@ export function PinLock({ message = 'Introduce el PIN para anotar' }: PinLockPro
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+    <div className="flex h-full flex-col items-center justify-center gap-5 p-6 text-center">
       <p className="text-lg font-semibold text-white">{message}</p>
       <input
         type="password"
@@ -37,7 +37,7 @@ export function PinLock({ message = 'Introduce el PIN para anotar' }: PinLockPro
           setError(null);
         }}
         onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-        className="w-32 rounded-xl border-2 border-slate-600 bg-slate-800 px-4 py-3 text-center text-3xl tracking-[0.5em] text-white"
+        className="w-36 rounded-2xl bg-white/5 px-4 py-3.5 text-center text-3xl tracking-[0.5em] text-white ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-amber-400"
         autoFocus
       />
       {error && <p className="text-sm font-semibold text-rose-400">{error}</p>}
@@ -45,7 +45,7 @@ export function PinLock({ message = 'Introduce el PIN para anotar' }: PinLockPro
         type="button"
         onClick={handleSubmit}
         disabled={pin.length !== 4 || loading}
-        className="rounded-xl bg-amber-500 px-6 py-3 font-bold text-slate-900 disabled:opacity-40"
+        className="rounded-full bg-amber-500 px-6 py-3.5 font-bold text-slate-900 shadow-lg shadow-amber-500/20 transition-transform touch-manipulation active:scale-95 disabled:opacity-40"
       >
         {loading ? 'Comprobando...' : 'Desbloquear'}
       </button>

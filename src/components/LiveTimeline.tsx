@@ -25,7 +25,7 @@ export function LiveTimeline({ events, players, onRowClick }: LiveTimelineProps)
                 type="button"
                 onClick={() => onRowClick?.(row)}
                 disabled={!clickable}
-                className="flex items-center gap-2 rounded-lg bg-slate-900/70 px-2 py-1.5 text-left text-sm text-white disabled:cursor-default"
+                className="flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5 text-left text-sm text-white ring-1 ring-white/5 transition-transform touch-manipulation active:scale-[0.99] disabled:cursor-default disabled:active:scale-100"
               >
                 <span className="w-12 shrink-0 font-mono text-xs text-amber-400">{formatClock(row.timestamp)}</span>
                 <span className="flex flex-1 items-center gap-1.5 truncate">

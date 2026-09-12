@@ -23,12 +23,12 @@ export function OnCourtRoster({ onCourtPlayers, selectedPlayerId, onSelectPlayer
             onClick={() => onSelectPlayer(selected ? null : player.id)}
             aria-label={`${player.name}, en pista${selected ? ', seleccionado' : ''}`}
             className={[
-              'flex h-14 items-center justify-center gap-2 rounded-lg border-4 px-3 font-bold touch-manipulation sm:h-16',
+              'flex h-14 items-center justify-center gap-2 rounded-2xl px-3 font-bold shadow-md ring-1 transition-transform touch-manipulation sm:h-16',
               selected
-                ? 'scale-105 border-amber-400 bg-amber-500 text-slate-900'
+                ? 'scale-105 bg-amber-500 text-slate-900 ring-amber-400 shadow-amber-500/30'
                 : player.position === 'goalkeeper'
-                  ? 'border-sky-600 bg-sky-400/90 text-slate-900'
-                  : 'border-emerald-700 bg-white text-emerald-900',
+                  ? 'bg-sky-400/90 text-slate-900 ring-sky-500/40'
+                  : 'bg-white text-emerald-900 ring-emerald-700/30',
             ].join(' ')}
           >
             <span className="opacity-60">{player.number}</span>

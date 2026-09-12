@@ -12,7 +12,7 @@ export function ActionPanelPlaceholder() {
             key={label}
             type="button"
             disabled
-            className="h-20 cursor-not-allowed rounded-xl border-4 border-slate-800 bg-slate-800/50 text-lg font-bold text-slate-600"
+            className="h-20 cursor-not-allowed rounded-2xl bg-white/5 text-lg font-bold text-slate-600 ring-1 ring-white/5"
           >
             {label}
           </button>

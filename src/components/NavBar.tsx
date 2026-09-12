@@ -61,51 +61,65 @@ export function NavBar() {
   const pendingCount = useSyncStatus((s) => s.pendingCount);
 
   return (
-    <nav className="flex shrink-0 border-t-2 border-slate-700 bg-slate-900 sm:order-first sm:w-28 sm:flex-col sm:border-r-2 sm:border-t-0">
-      <div className="hidden shrink-0 items-center justify-center py-3 sm:flex">
-        <ClubLogo className="h-12 w-12 object-contain" />
+    <nav
+      className="fixed inset-x-3 bottom-3 z-30 flex items-center gap-1 rounded-3xl bg-slate-900/85 p-1.5 shadow-2xl shadow-black/50 ring-1 ring-white/10 backdrop-blur-xl sm:static sm:order-1 sm:inset-auto sm:w-24 sm:flex-col sm:gap-2 sm:rounded-none sm:bg-slate-950/60 sm:p-3 sm:pt-6 sm:shadow-none sm:ring-0 sm:ring-white/5 sm:[border-inline-end:1px_solid_rgba(255,255,255,0.08)]"
+      style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}
+    >
+      <div className="hidden shrink-0 items-center justify-center pb-2 sm:flex">
+        <ClubLogo className="h-11 w-11 object-contain" />
       </div>
+
       {pendingCount > 0 && (
-        <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-b-2 border-amber-500/40 bg-amber-500/10 px-2 py-2 text-center sm:order-first sm:border-b-0 sm:border-t-2">
-          <span className="text-xs font-bold text-amber-400">Sin conexión</span>
-          <span className="text-[0.65rem] text-amber-300">{pendingCount} sin subir</span>
+        <div className="hidden shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-amber-500/10 px-2 py-2 text-center ring-1 ring-amber-500/30 sm:flex">
+          <span className="text-[0.65rem] font-bold text-amber-400">Sin conexión</span>
+          <span className="text-[0.6rem] text-amber-300">{pendingCount} sin subir</span>
         </div>
       )}
-      {TABS.map((tab) => (
-        <NavLink
-          key={tab.to}
-          to={tab.to}
-          end={tab.end}
-          className={({ isActive }) =>
-            [
-              'flex flex-1 flex-col items-center justify-center gap-1 py-3 text-base font-semibold touch-manipulation sm:py-6',
-              isActive ? 'bg-slate-700 text-amber-400' : 'text-slate-300',
-            ].join(' ')
-          }
-        >
-          <tab.icon />
-          <span>{tab.label}</span>
-        </NavLink>
-      ))}
-      {unlocked ? (
-        <button
-          type="button"
-          onClick={() => lock()}
-          className="flex shrink-0 flex-col items-center justify-center gap-1 border-t-2 border-slate-700 py-3 text-xs font-semibold text-emerald-400 sm:border-t-0 sm:border-t-2"
-        >
-          <UnlockIcon />
-          <span>Bloquear</span>
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => navigate('/desbloquear')}
-          className="flex shrink-0 flex-col items-center justify-center gap-1 border-t-2 border-slate-700 py-3 text-xs font-semibold text-slate-300 sm:border-t-0 sm:border-t-2"
-        >
-          <LockIcon />
-          <span>Anotar</span>
-        </button>
-      )}
+
+      <div className="flex flex-1 items-center gap-1 sm:flex-col sm:gap-2">
+        {TABS.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            end={tab.end}
+            className={({ isActive }) =>
+              [
+                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold transition-colors touch-manipulation sm:w-full sm:flex-none sm:py-4 sm:text-sm',
+                isActive ? 'bg-amber-500/15 text-amber-400' : 'text-slate-400 active:bg-white/5',
+              ].join(' ')
+            }
+          >
+            <tab.icon />
+            <span>{tab.label}</span>
+          </NavLink>
+        ))}
+
+        {pendingCount > 0 && (
+          <span className="flex shrink-0 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[0.6rem] font-black text-slate-900 sm:hidden">
+            {pendingCount}
+          </span>
+        )}
+
+        {unlocked ? (
+          <button
+            type="button"
+            onClick={() => lock()}
+            className="flex flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold text-emerald-400 touch-manipulation active:bg-white/5 sm:mt-auto sm:w-full sm:flex-none sm:py-4"
+          >
+            <UnlockIcon />
+            <span>Bloquear</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate('/desbloquear')}
+            className="flex flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold text-slate-400 touch-manipulation active:bg-white/5 sm:mt-auto sm:w-full sm:flex-none sm:py-4"
+          >
+            <LockIcon />
+            <span>Anotar</span>
+          </button>
+        )}
+      </div>
     </nav>
   );
 }

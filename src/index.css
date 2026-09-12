@@ -10,8 +10,14 @@ html, body, #root {
   margin: 0;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background-color: #020617;
+  background-color: #06070c;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }

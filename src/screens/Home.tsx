@@ -4,12 +4,28 @@ import { useAppData, activeSeason } from '../stores/useAppData';
 import { computeFieldPlayerStats, computeGoalkeeperStats, computeTeamSeasonStats } from '../stats/matchStats';
 import { ClubLogo } from '../components/ClubLogo';
 import { PlayerAvatar } from '../components/PlayerAvatar';
+import { StatCard } from '../components/StatCard';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
 
 type SortKey = 'goals' | 'assists' | 'turnovers' | 'recoveries' | 'exclusions';
 type GkSortKey = 'saves' | 'goalsConceded' | 'savePct';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'goals', label: 'Goles' },
+  { value: 'assists', label: 'Asist.' },
+  { value: 'turnovers', label: 'Pérdidas' },
+  { value: 'recoveries', label: 'Recup.' },
+  { value: 'exclusions', label: 'Exclus.' },
+];
+
+const GK_SORT_OPTIONS: { value: GkSortKey; label: string }[] = [
+  { value: 'saves', label: 'Paradas' },
+  { value: 'goalsConceded', label: 'Goles recib.' },
+  { value: 'savePct', label: '% Paradas' },
+];
 
 export function Home() {
   const players = useAppData((s) => s.players);
@@ -66,142 +82,100 @@ export function Home() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <ClubLogo className="h-20 w-20 self-center object-contain sm:hidden" />
+    <div className="flex flex-col gap-7 p-4 pt-6 sm:p-6">
+      <div className="flex flex-col items-center gap-2 sm:hidden">
+        <ClubLogo className="h-16 w-16 object-contain" />
+      </div>
 
       <section>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-white">Temporada {season?.name ?? ''}</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-2xl font-extrabold tracking-tight text-white">Temporada {season?.name ?? ''}</h2>
           {unlocked && (
             <button
               type="button"
               onClick={handleCloseSeason}
-              className="rounded-lg border-2 border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-300"
+              className="rounded-full bg-white/8 px-3.5 py-2 text-xs font-bold text-slate-200 transition-transform touch-manipulation active:scale-95"
             >
               Cerrar temporada
             </button>
           )}
         </div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-7">
-          <Stat label="PJ" value={team.played} />
-          <Stat label="PG" value={team.wins} />
-          <Stat label="PE" value={team.draws} />
-          <Stat label="PP" value={team.losses} />
-          <Stat label="GF" value={team.goalsFor} />
-          <Stat label="GC" value={team.goalsAgainst} />
-          <Stat label="Dif." value={team.goalDiff} />
+          <StatCard label="PJ" value={team.played} />
+          <StatCard label="PG" value={team.wins} />
+          <StatCard label="PE" value={team.draws} />
+          <StatCard label="PP" value={team.losses} />
+          <StatCard label="GF" value={team.goalsFor} />
+          <StatCard label="GC" value={team.goalsAgainst} />
+          <StatCard label="Dif." value={team.goalDiff} />
         </div>
       </section>
 
       <section>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold text-white">Jugadores</h2>
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded-lg border-2 border-slate-600 bg-slate-800 px-2 py-1 text-sm text-white"
-          >
-            <option value="goals">Goles</option>
-            <option value="assists">Asistencias</option>
-            <option value="turnovers">Pérdidas</option>
-            <option value="recoveries">Recuperaciones</option>
-            <option value="exclusions">Exclusiones</option>
-          </select>
+          <SegmentedControl value={sortKey} options={SORT_OPTIONS} onChange={setSortKey} />
         </div>
-        <div className="overflow-x-auto rounded-xl border-2 border-slate-700">
-          <table className="w-full text-left text-sm text-white">
-            <thead className="bg-slate-800 text-slate-300">
-              <tr>
-                <th className="p-2">Jugador</th>
-                <th className="p-2 text-right">Goles</th>
-                <th className="p-2 text-right">Asist.</th>
-                <th className="p-2 text-right">Pérdidas</th>
-                <th className="p-2 text-right">Recup.</th>
-                <th className="p-2 text-right">Exclus.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ player, stats }) => (
-                <tr key={player.id} className="border-t border-slate-700 odd:bg-slate-900 even:bg-slate-800/60">
-                  <td className="p-2">
-                    <Link to={`/jugadores/${player.id}`} className="flex items-center gap-2 font-semibold text-amber-400">
-                      <PlayerAvatar playerId={player.id} name={player.name} className="h-8 w-8" />
-                      {player.name}
-                    </Link>
-                  </td>
-                  <td className="p-2 text-right">{stats.goals}</td>
-                  <td className="p-2 text-right">{stats.assists}</td>
-                  <td className="p-2 text-right">{stats.turnovers}</td>
-                  <td className="p-2 text-right">{stats.recoveries}</td>
-                  <td className="p-2 text-right">{stats.exclusions}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-2">
+          {rows.map(({ player, stats }) => (
+            <Link
+              key={player.id}
+              to={`/jugadores/${player.id}`}
+              className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5 ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]"
+            >
+              <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-white">{player.name}</p>
+                <p className="truncate text-xs text-slate-400">
+                  {stats.assists} asist. · {stats.turnovers} pérd. · {stats.recoveries} recup. · {stats.exclusions} exclus.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-center">
+                <p className="text-xl font-extrabold text-amber-400">{stats[sortKey]}</p>
+                <p className="text-[0.6rem] uppercase tracking-wide text-slate-500">
+                  {SORT_OPTIONS.find((o) => o.value === sortKey)?.label}
+                </p>
+              </div>
+            </Link>
+          ))}
+          {rows.length === 0 && <p className="p-2 text-slate-400">No hay jugadores de campo.</p>}
         </div>
       </section>
 
       <section>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold text-white">Porteros</h2>
-          <select
-            value={gkSortKey}
-            onChange={(e) => setGkSortKey(e.target.value as GkSortKey)}
-            className="rounded-lg border-2 border-slate-600 bg-slate-800 px-2 py-1 text-sm text-white"
-          >
-            <option value="saves">Paradas</option>
-            <option value="goalsConceded">Goles recibidos</option>
-            <option value="savePct">% Paradas</option>
-          </select>
+          <SegmentedControl value={gkSortKey} options={GK_SORT_OPTIONS} onChange={setGkSortKey} />
         </div>
-        <div className="overflow-x-auto rounded-xl border-2 border-slate-700">
-          <table className="w-full text-left text-sm text-white">
-            <thead className="bg-slate-800 text-slate-300">
-              <tr>
-                <th className="p-2">Portero</th>
-                <th className="p-2 text-right">Lanz. recib.</th>
-                <th className="p-2 text-right">Paradas</th>
-                <th className="p-2 text-right">Goles recib.</th>
-                <th className="p-2 text-right">% Paradas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gkRows.map(({ player, stats }) => (
-                <tr key={player.id} className="border-t border-slate-700 odd:bg-slate-900 even:bg-slate-800/60">
-                  <td className="p-2">
-                    <Link to={`/jugadores/${player.id}`} className="flex items-center gap-2 font-semibold text-amber-400">
-                      <PlayerAvatar playerId={player.id} name={player.name} className="h-8 w-8" />
-                      {player.name}
-                    </Link>
-                  </td>
-                  <td className="p-2 text-right">{stats.shotsFaced}</td>
-                  <td className="p-2 text-right">{stats.saves}</td>
-                  <td className="p-2 text-right">{stats.goalsConceded}</td>
-                  <td className="p-2 text-right">{stats.savePct}%</td>
-                </tr>
-              ))}
-              {gkRows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-2 text-center text-slate-400">
-                    No hay porteros en la plantilla.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-2">
+          {gkRows.map(({ player, stats }) => (
+            <Link
+              key={player.id}
+              to={`/jugadores/${player.id}`}
+              className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5 ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]"
+            >
+              <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-white">{player.name}</p>
+                <p className="truncate text-xs text-slate-400">
+                  {stats.shotsFaced} lanz. recib. · {stats.saves} paradas · {stats.goalsConceded} goles recib.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-center">
+                <p className="text-xl font-extrabold text-amber-400">
+                  {gkSortKey === 'savePct' ? `${stats[gkSortKey]}%` : stats[gkSortKey]}
+                </p>
+                <p className="text-[0.6rem] uppercase tracking-wide text-slate-500">
+                  {GK_SORT_OPTIONS.find((o) => o.value === gkSortKey)?.label}
+                </p>
+              </div>
+            </Link>
+          ))}
+          {gkRows.length === 0 && <p className="p-2 text-slate-400">No hay porteros en la plantilla.</p>}
         </div>
       </section>
 
       {dialog}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border-2 border-slate-700 bg-slate-800 p-2 text-center">
-      <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="text-xs text-slate-400">{label}</p>
     </div>
   );
 }

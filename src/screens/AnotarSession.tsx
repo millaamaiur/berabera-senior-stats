@@ -149,7 +149,7 @@ export function AnotarSession() {
   if (showHalftimeScreen) {
     return (
       <div className="flex h-full flex-col gap-3 overflow-y-auto p-2 sm:p-3">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-slate-800 p-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/5 p-3 ring-1 ring-amber-500/40">
           <div>
             <p className="text-xs font-bold text-amber-400">DESCANSO</p>
             <p className="text-lg font-bold text-white">vs {match.opponent}</p>
@@ -170,15 +170,15 @@ export function AnotarSession() {
 
   return (
     <div className="flex h-full flex-col gap-2 overflow-hidden p-2 sm:p-3">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-700 bg-slate-800 p-2 sm:p-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/5 p-2 ring-1 ring-white/10 sm:p-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate('/partidos')}
             disabled={match.clock.running}
             className={[
-              'rounded-lg border-2 px-3 py-3 text-sm font-semibold touch-manipulation',
-              match.clock.running ? 'border-slate-700 text-slate-600' : 'border-slate-600 text-slate-300',
+              'rounded-full px-3 py-3 text-sm font-semibold ring-1 touch-manipulation',
+              match.clock.running ? 'text-slate-600 ring-white/5' : 'text-slate-300 ring-white/10 active:bg-white/5',
             ].join(' ')}
             title={match.clock.running ? 'Pausa el partido antes de salir' : undefined}
           >
@@ -207,8 +207,8 @@ export function AnotarSession() {
           <div className="flex flex-col items-center">
             <span
               className={[
-                'w-20 rounded-lg border-2 bg-slate-900 px-2 py-2 text-center font-mono text-2xl transition-colors',
-                match.clock.running ? 'border-emerald-500 text-emerald-400' : 'border-slate-600 text-slate-400',
+                'w-20 rounded-xl bg-black/30 px-2 py-2 text-center font-mono text-2xl ring-1 transition-colors',
+                match.clock.running ? 'text-emerald-400 ring-emerald-500/50' : 'text-slate-400 ring-white/10',
               ].join(' ')}
             >
               {formatClock(getElapsedSeconds())}
@@ -240,8 +240,8 @@ export function AnotarSession() {
             onClick={() => undo()}
             disabled={events.length === 0}
             className={[
-              'rounded-lg px-4 py-3 font-bold touch-manipulation',
-              events.length === 0 ? 'bg-slate-800 text-slate-500' : 'bg-rose-600 text-white',
+              'rounded-full px-4 py-3 font-bold shadow-lg transition-transform touch-manipulation active:scale-95',
+              events.length === 0 ? 'bg-white/5 text-slate-500 shadow-none' : 'bg-rose-500 text-white shadow-rose-500/20',
             ].join(' ')}
           >
             Deshacer
@@ -260,7 +260,7 @@ export function AnotarSession() {
       </div>
 
       {lineupDone ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-slate-700 bg-slate-800 p-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
           <OnCourtRoster onCourtPlayers={onCourtPlayers} selectedPlayerId={selectedPlayerId} onSelectPlayer={selectPlayer} />
           <button type="button" onClick={() => setShowSubs(true)} className={btnClass('amber')}>
             Hacer cambios
@@ -271,7 +271,7 @@ export function AnotarSession() {
       )}
 
       <div className={['grid min-h-0 flex-1 grid-cols-2 gap-2 transition-opacity', lineupDone ? '' : 'opacity-50'].join(' ')}>
-        <div className="min-h-0 overflow-y-auto rounded-xl border-2 border-slate-700 bg-slate-800/60 p-3">
+        <div className="min-h-0 overflow-y-auto rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
           {selectedPlayer ? (
             <ActionPanel player={selectedPlayer} />
           ) : lineupDone ? (
@@ -282,7 +282,7 @@ export function AnotarSession() {
             </p>
           )}
         </div>
-        <div className="min-h-0 overflow-y-auto rounded-xl border-2 border-slate-700 bg-slate-800/60 p-3">
+        <div className="min-h-0 overflow-y-auto rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
           <LiveTimeline
             events={events}
             players={players}
@@ -335,10 +335,10 @@ export function AnotarSession() {
 
 function btnClass(color: 'slate' | 'emerald' | 'rose' | 'amber'): string {
   const colors: Record<string, string> = {
-    slate: 'bg-slate-700 text-white',
-    emerald: 'bg-emerald-500 text-slate-900',
-    rose: 'bg-rose-600 text-white',
-    amber: 'bg-amber-500 text-slate-900',
+    slate: 'bg-white/8 text-white shadow-none',
+    emerald: 'bg-emerald-500 text-slate-900 shadow-emerald-500/20',
+    rose: 'bg-rose-500 text-white shadow-rose-500/20',
+    amber: 'bg-amber-500 text-slate-900 shadow-amber-500/20',
   };
-  return `rounded-lg px-4 py-3 font-bold touch-manipulation ${colors[color]}`;
+  return `rounded-full px-4 py-3 font-bold shadow-lg transition-transform touch-manipulation active:scale-95 ${colors[color]}`;
 }

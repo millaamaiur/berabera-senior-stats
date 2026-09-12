@@ -18,13 +18,28 @@ export function Root() {
   }, []);
 
   return (
-    <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-slate-950 text-white sm:flex-row">
+    <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-[#06070c] text-white sm:flex-row">
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 opacity-60"
+        style={{
+          background:
+            'radial-gradient(60% 40% at 15% 0%, rgba(245,158,11,0.10), transparent), radial-gradient(50% 35% at 100% 20%, rgba(56,189,248,0.08), transparent)',
+        }}
+      />
+      <main className="order-1 flex-1 overflow-y-auto pb-24 sm:order-2 sm:pb-0">
+        {loaded ? <Outlet /> : <LoadingScreen />}
+      </main>
       <NavBar />
-      <main className="flex-1 overflow-y-auto">{loaded ? <Outlet /> : <LoadingScreen />}</main>
     </div>
   );
 }
 
 function LoadingScreen() {
-  return <div className="flex h-full items-center justify-center text-slate-400">Cargando...</div>;
+  return (
+    <div className="flex h-full items-center justify-center gap-2 text-slate-400">
+      <span className="h-2 w-2 animate-bounce rounded-full bg-amber-500 [animation-delay:-0.3s]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-amber-500 [animation-delay:-0.15s]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-amber-500" />
+    </div>
+  );
 }

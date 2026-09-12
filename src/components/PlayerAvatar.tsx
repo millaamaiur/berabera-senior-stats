@@ -19,7 +19,7 @@ export function PlayerAvatar({ playerId, name, className = 'h-10 w-10' }: Player
   if (failed) {
     return (
       <div
-        className={`flex shrink-0 items-center justify-center rounded-full border-2 border-slate-700 bg-slate-800 font-bold text-slate-400 ${className}`}
+        className={`flex shrink-0 items-center justify-center rounded-full bg-white/10 font-bold text-slate-300 ring-1 ring-white/10 ${className}`}
       >
         {initials}
       </div>
@@ -31,7 +31,7 @@ export function PlayerAvatar({ playerId, name, className = 'h-10 w-10' }: Player
       src={`/players/${playerId}.png`}
       alt={name}
       onError={() => setFailed(true)}
-      className={`shrink-0 rounded-full border-2 border-slate-700 object-cover ${className}`}
+      className={`shrink-0 rounded-full object-cover ring-1 ring-white/10 ${className}`}
     />
   );
 }

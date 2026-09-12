@@ -76,8 +76,8 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
-      <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border-2 border-slate-700 bg-slate-900 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
+      <div className="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-slate-900/95 p-4 shadow-2xl ring-1 ring-white/10">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">Editar evento</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400" aria-label="Cerrar">
@@ -87,20 +87,24 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
 
         {target.kind === 'substitution' ? (
           <>
-            <div className="rounded-lg bg-slate-800 p-3 text-sm text-white">
+            <div className="rounded-2xl bg-white/5 p-3 text-sm text-white ring-1 ring-white/10">
               <p className="font-mono text-amber-400">{formatClock(target.outEvent.timestamp)}</p>
               <p className="mt-1 flex items-center gap-1.5">
                 <span className="font-bold text-rose-400">↓</span> {target.playerOut.name}
                 <span className="font-bold text-emerald-400">↑</span> {target.playerIn.name}
               </p>
             </div>
-            <button type="button" onClick={handleDeletePair} className="rounded-lg bg-rose-600 px-4 py-3 font-bold text-white">
+            <button
+              type="button"
+              onClick={handleDeletePair}
+              className="rounded-full bg-rose-500 px-4 py-3 font-bold text-white shadow-lg shadow-rose-500/20 transition-transform touch-manipulation active:scale-95"
+            >
               Eliminar cambio
             </button>
           </>
         ) : (
           <>
-            <div className="rounded-lg bg-slate-800 p-3 text-sm text-white">
+            <div className="rounded-2xl bg-white/5 p-3 text-sm text-white ring-1 ring-white/10">
               <p className="font-mono text-amber-400">{formatClock(target.event.timestamp)}</p>
               <p className="mt-1 font-semibold">{target.player?.name ?? '—'}</p>
               <p className="text-slate-400">{EVENT_LABELS[target.event.eventType]}</p>
@@ -116,8 +120,8 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
                       type="button"
                       onClick={() => setDraftResult(opt)}
                       className={[
-                        'rounded-lg border-2 px-4 py-2 font-bold',
-                        draftResult === opt ? 'border-amber-400 bg-amber-500 text-slate-900' : 'border-slate-600 bg-slate-800 text-white',
+                        'rounded-full px-4 py-2 font-bold ring-1 transition-transform touch-manipulation active:scale-95',
+                        draftResult === opt ? 'bg-amber-500 text-slate-900 ring-amber-400' : 'bg-white/5 text-white ring-white/10',
                       ].join(' ')}
                     >
                       {RESULT_LABELS[opt]}
@@ -132,7 +136,7 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
             <button
               type="button"
               onClick={() => handleDeleteSingle(target.event.id, EVENT_LABELS[target.event.eventType])}
-              className="rounded-lg bg-rose-600 px-4 py-3 font-bold text-white"
+              className="rounded-full bg-rose-500 px-4 py-3 font-bold text-white shadow-lg shadow-rose-500/20 transition-transform touch-manipulation active:scale-95"
             >
               Eliminar evento
             </button>

@@ -5,6 +5,7 @@ import { computeDefensiveOnCourtStats, computeFieldPlayerStats, computeGoalkeepe
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { formatClock, formatDate } from '../utils/time';
 import { PlayerAvatar } from '../components/PlayerAvatar';
+import { StatCard } from '../components/StatCard';
 
 export function PlayerProfile() {
   const { id } = useParams<{ id: string }>();
@@ -52,54 +53,54 @@ export function PlayerProfile() {
   const maxZoneShots = Math.max(1, ...zoneStats.map((z) => z.shots));
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-7 p-4 pt-6 sm:p-6">
       <div className="flex items-center gap-4">
-        <PlayerAvatar playerId={player.id} name={player.name} className="h-20 w-20 border-4" />
+        <PlayerAvatar playerId={player.id} name={player.name} className="h-20 w-20" />
         <div>
-          <h2 className="text-2xl font-bold text-white">{player.name}</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight text-white">{player.name}</h2>
           <p className="text-slate-400">{isGoalkeeper ? 'Portero' : 'Jugador de campo'} · Nº {player.number}</p>
         </div>
       </div>
 
       <section className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        <Stat label="Partidos" value={playedMatches.length} />
-        <Stat label="Minutos" value={formatClock(totalMinutes)} />
+        <StatCard label="Partidos" value={playedMatches.length} />
+        <StatCard label="Minutos" value={formatClock(totalMinutes)} />
         {fieldStats && (
           <>
-            <Stat label="Goles" value={fieldStats.goals} />
-            <Stat label="Lanz." value={fieldStats.shots} />
-            <Stat label="% Acierto" value={`${fieldStats.shotPct}%`} />
+            <StatCard label="Goles" value={fieldStats.goals} />
+            <StatCard label="Lanz." value={fieldStats.shots} />
+            <StatCard label="% Acierto" value={`${fieldStats.shotPct}%`} />
             {fieldStats.penaltiesTaken > 0 && (
               <>
-                <Stat label="Penaltis lanz." value={fieldStats.penaltiesTaken} />
-                <Stat label="Penaltis gol" value={fieldStats.penaltiesScored} />
-                <Stat label="% Penaltis" value={`${fieldStats.penaltyScorePct}%`} />
+                <StatCard label="Penaltis lanz." value={fieldStats.penaltiesTaken} />
+                <StatCard label="Penaltis gol" value={fieldStats.penaltiesScored} />
+                <StatCard label="% Penaltis" value={`${fieldStats.penaltyScorePct}%`} />
               </>
             )}
-            <Stat label="Asist." value={fieldStats.assists} />
-            <Stat label="Pérdidas" value={fieldStats.turnovers} />
-            <Stat label="Recup." value={fieldStats.recoveries} />
-            <Stat label="Pasos" value={fieldStats.steps} />
-            <Stat label="Amarillas" value={fieldStats.yellowCards} />
-            <Stat label="Rojas" value={fieldStats.redCards} />
-            <Stat label="Azules" value={fieldStats.blueCards} />
-            <Stat label="Exclus." value={fieldStats.exclusions} />
+            <StatCard label="Asist." value={fieldStats.assists} />
+            <StatCard label="Pérdidas" value={fieldStats.turnovers} />
+            <StatCard label="Recup." value={fieldStats.recoveries} />
+            <StatCard label="Pasos" value={fieldStats.steps} />
+            <StatCard label="Amarillas" value={fieldStats.yellowCards} />
+            <StatCard label="Rojas" value={fieldStats.redCards} />
+            <StatCard label="Azules" value={fieldStats.blueCards} />
+            <StatCard label="Exclus." value={fieldStats.exclusions} />
           </>
         )}
         {gkStats && (
           <>
-            <Stat label="Lanz. recib." value={gkStats.shotsFaced} />
-            <Stat label="Paradas" value={gkStats.saves} />
-            <Stat label="Goles recib." value={gkStats.goalsConceded} />
-            <Stat label="% Paradas" value={`${gkStats.savePct}%`} />
-            <Stat label="Penaltis recib." value={gkStats.penaltiesFaced} />
-            <Stat label="Penaltis parados" value={gkStats.penaltiesSaved} />
-            <Stat label="Penaltis gol" value={gkStats.penaltiesConceded} />
-            <Stat label="% Parada penalti" value={`${gkStats.penaltySavePct}%`} />
+            <StatCard label="Lanz. recib." value={gkStats.shotsFaced} />
+            <StatCard label="Paradas" value={gkStats.saves} />
+            <StatCard label="Goles recib." value={gkStats.goalsConceded} />
+            <StatCard label="% Paradas" value={`${gkStats.savePct}%`} />
+            <StatCard label="Penaltis recib." value={gkStats.penaltiesFaced} />
+            <StatCard label="Penaltis parados" value={gkStats.penaltiesSaved} />
+            <StatCard label="Penaltis gol" value={gkStats.penaltiesConceded} />
+            <StatCard label="% Parada penalti" value={`${gkStats.penaltySavePct}%`} />
           </>
         )}
-        <Stat label="GC en pista" value={defenseStats.goalsAgainst} />
-        <Stat label="% Def. equipo" value={defenseStats.attacksFaced ? `${defenseStats.stopPct}%` : '—'} />
+        <StatCard label="GC en pista" value={defenseStats.goalsAgainst} />
+        <StatCard label="% Def. equipo" value={defenseStats.attacksFaced ? `${defenseStats.stopPct}%` : '—'} />
       </section>
 
       <section>
@@ -111,7 +112,7 @@ export function PlayerProfile() {
             return (
               <div
                 key={z.zone}
-                className="rounded-lg border-2 border-slate-700 p-2 text-center text-white"
+                className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
                 style={{ backgroundColor: `rgba(37, 99, 235, ${intensity})` }}
               >
                 <p className="text-xs text-slate-300">Zona {z.zone}</p>
@@ -131,26 +132,17 @@ export function PlayerProfile() {
             <Link
               key={m.id}
               to={`/partidos/${m.id}`}
-              className="flex items-center justify-between rounded-xl border-2 border-slate-700 bg-slate-800 p-3 text-white"
+              className="flex items-center justify-between rounded-2xl bg-white/5 p-3 text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]"
             >
-              <span>
+              <span className="font-semibold">
                 {formatDate(m.date)} vs {m.opponent}
               </span>
-              <span className="text-slate-400">{m.status}</span>
+              <span className="text-sm text-slate-400">{m.status}</span>
             </Link>
           ))}
-          {playedMatches.length === 0 && <p className="text-slate-400">Sin partidos todavía.</p>}
+          {playedMatches.length === 0 && <p className="p-2 text-slate-400">Sin partidos todavía.</p>}
         </div>
       </section>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg border-2 border-slate-700 bg-slate-800 p-2 text-center">
-      <p className="text-xl font-bold text-white">{value}</p>
-      <p className="text-[0.65rem] text-slate-400">{label}</p>
     </div>
   );
 }

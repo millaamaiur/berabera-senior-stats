@@ -64,8 +64,8 @@ export function SubstitutionModal({ onCourtPlayers, benchPlayers, onConfirm, onC
   const canConfirm = outIds.size > 0 || inIds.size > 0;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-3">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-2xl border-2 border-slate-700 bg-slate-900 p-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl bg-slate-900/95 p-4 shadow-2xl ring-1 ring-white/10">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">Hacer cambios</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400" aria-label="Cerrar">
@@ -108,19 +108,23 @@ export function SubstitutionModal({ onCourtPlayers, benchPlayers, onConfirm, onC
 
         {message && <p className="text-sm font-semibold text-rose-400">{message}</p>}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
           <p className="text-sm text-slate-400">
             Salen: {outIds.size} · Entran: {inIds.size}
           </p>
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-white/8 px-4 py-2.5 font-semibold text-white transition-transform touch-manipulation active:scale-95"
+            >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleConfirm}
               disabled={!canConfirm}
-              className="rounded-lg bg-amber-500 px-4 py-2 font-bold text-slate-900 disabled:opacity-40"
+              className="rounded-full bg-amber-500 px-4 py-2.5 font-bold text-slate-900 shadow-lg shadow-amber-500/20 transition-transform touch-manipulation active:scale-95 disabled:opacity-40"
             >
               Confirmar cambios
             </button>
@@ -132,11 +136,8 @@ export function SubstitutionModal({ onCourtPlayers, benchPlayers, onConfirm, onC
 }
 
 function chipClass(player: Player, marked: boolean, markColor: 'rose' | 'emerald'): string {
-  const base = 'flex h-12 items-center justify-center gap-1 rounded-lg border-2 px-3 font-bold touch-manipulation';
-  const posColor =
-    player.position === 'goalkeeper'
-      ? 'border-sky-500 bg-sky-500/10 text-sky-300'
-      : 'border-slate-500 bg-slate-700 text-white';
-  const markClass = marked ? (markColor === 'rose' ? 'ring-4 ring-rose-400' : 'ring-4 ring-emerald-400') : '';
+  const base = 'flex h-12 items-center justify-center gap-1 rounded-full px-3 font-bold ring-1 touch-manipulation';
+  const posColor = player.position === 'goalkeeper' ? 'bg-sky-500/10 text-sky-300 ring-sky-500/40' : 'bg-white/5 text-white ring-white/10';
+  const markClass = marked ? (markColor === 'rose' ? 'ring-2 ring-rose-400' : 'ring-2 ring-emerald-400') : '';
   return [base, posColor, markClass].join(' ');
 }

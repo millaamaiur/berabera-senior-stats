@@ -21,9 +21,9 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm" onClick={onCancel}>
       <div
-        className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border-2 border-slate-700 bg-slate-900 p-5"
+        className="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-slate-900/95 p-5 shadow-2xl ring-1 ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
@@ -31,15 +31,19 @@ export function ConfirmDialog({
           {message && <p className="mt-1 text-sm text-slate-400">{message}</p>}
         </div>
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full bg-white/8 px-4 py-2.5 font-semibold text-white transition-transform touch-manipulation active:scale-95"
+          >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className={[
-              'rounded-lg px-4 py-2 font-bold',
-              danger ? 'bg-rose-600 text-white' : 'bg-amber-500 text-slate-900',
+              'rounded-full px-4 py-2.5 font-bold shadow-lg transition-transform touch-manipulation active:scale-95',
+              danger ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-amber-500 text-slate-900 shadow-amber-500/20',
             ].join(' ')}
           >
             {confirmLabel}

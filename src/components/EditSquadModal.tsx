@@ -33,8 +33,8 @@ export function EditSquadModal({ allPlayers, calledPlayerIds, lockedPlayerIds, o
   const goalkeepers = allPlayers.filter((p) => p.position === 'goalkeeper');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-2xl border-2 border-slate-700 bg-slate-900 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl bg-slate-900/95 p-4 shadow-2xl ring-1 ring-white/10">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">Editar convocatoria</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400" aria-label="Cerrar">
@@ -48,11 +48,19 @@ export function EditSquadModal({ allPlayers, calledPlayerIds, lockedPlayerIds, o
         <Group title="Jugadores de campo" players={fieldPlayers} selected={selected} locked={lockedPlayerIds} onToggle={toggle} />
         <Group title="Porteros" players={goalkeepers} selected={selected} locked={lockedPlayerIds} onToggle={toggle} />
 
-        <div className="flex justify-end gap-2 border-t border-slate-700 pt-3">
-          <button type="button" onClick={onClose} className="rounded-lg bg-slate-700 px-4 py-2 font-semibold text-white">
+        <div className="flex justify-end gap-2 border-t border-white/10 pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-white/8 px-4 py-2.5 font-semibold text-white transition-transform touch-manipulation active:scale-95"
+          >
             Cancelar
           </button>
-          <button type="button" onClick={handleSave} className="rounded-lg bg-amber-500 px-4 py-2 font-bold text-slate-900">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="rounded-full bg-amber-500 px-4 py-2.5 font-bold text-slate-900 shadow-lg shadow-amber-500/20 transition-transform touch-manipulation active:scale-95"
+          >
             Guardar convocatoria ({selected.size})
           </button>
         </div>
@@ -88,10 +96,8 @@ function Group({
               onClick={() => onToggle(player.id)}
               disabled={isLocked}
               className={[
-                'flex h-11 items-center justify-center gap-1.5 rounded-lg border-2 px-3 font-semibold touch-manipulation',
-                isSelected
-                  ? 'border-amber-500 bg-amber-500/20 text-amber-300'
-                  : 'border-slate-600 bg-slate-800 text-slate-400',
+                'flex h-11 items-center justify-center gap-1.5 rounded-full px-3 font-semibold ring-1 touch-manipulation',
+                isSelected ? 'bg-amber-500/20 text-amber-300 ring-amber-500/40' : 'bg-white/5 text-slate-400 ring-white/10',
                 isLocked ? 'opacity-60' : '',
               ].join(' ')}
             >

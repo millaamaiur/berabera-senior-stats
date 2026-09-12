@@ -4,6 +4,10 @@ import { useAppData } from '../stores/useAppData';
 import { createPlayer, suggestPlayerNumber, toggleActive, validatePlayerNumber } from '../stores/playerActions';
 import { numberRangeFor, type Position } from '../domain/types';
 import { useAuthStore } from '../stores/useAuthStore';
+import { Badge } from '../components/Badge';
+import { SegmentedControl } from '../components/SegmentedControl';
+
+const inputClass = 'mt-1 rounded-xl bg-white/5 px-3 py-2.5 text-white ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-amber-400';
 
 export function Players() {
   const players = useAppData((s) => s.players);
@@ -49,41 +53,39 @@ export function Players() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white">Jugadores de campo</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight text-white">Jugadores de campo</h2>
         {unlocked && (
           <button
             type="button"
             onClick={() => (showForm ? setShowForm(false) : openForm())}
-            className="rounded-lg border-2 border-amber-500 bg-amber-500/10 px-3 py-2 font-semibold text-amber-400"
+            className="rounded-full bg-amber-500 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/20 transition-transform touch-manipulation active:scale-95"
           >
-            + Añadir jugador
+            + Añadir
           </button>
         )}
       </div>
 
       {unlocked && showForm && (
-        <div className="flex flex-col gap-3 rounded-xl border-2 border-slate-700 bg-slate-800 p-3">
+        <div className="flex flex-col gap-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col text-sm text-slate-300">
               Nombre
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 rounded-lg border-2 border-slate-600 bg-slate-900 px-2 py-2 text-white"
-              />
+              <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
             </label>
             <label className="flex flex-col text-sm text-slate-300">
               Posición
-              <select
-                value={position}
-                onChange={(e) => handlePositionChange(e.target.value as Position)}
-                className="mt-1 rounded-lg border-2 border-slate-600 bg-slate-900 px-2 py-2 text-white"
-              >
-                <option value="player">Jugador de campo</option>
-                <option value="goalkeeper">Portero</option>
-              </select>
+              <span className="mt-1">
+                <SegmentedControl
+                  value={position}
+                  onChange={handlePositionChange}
+                  options={[
+                    { value: 'player', label: 'Jugador de campo' },
+                    { value: 'goalkeeper', label: 'Portero' },
+                  ]}
+                />
+              </span>
             </label>
             <label className="flex flex-col text-sm text-slate-300">
               Dorsal ({numberRangeFor(position).min}-{numberRangeFor(position).max})
@@ -96,10 +98,14 @@ export function Players() {
                   setNumber(Number(e.target.value));
                   setError(null);
                 }}
-                className="mt-1 w-20 rounded-lg border-2 border-slate-600 bg-slate-900 px-2 py-2 text-white"
+                className={`w-20 ${inputClass}`}
               />
             </label>
-            <button type="button" onClick={handleAdd} className="rounded-lg bg-amber-500 px-4 py-2 font-bold text-slate-900">
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="rounded-full bg-amber-500 px-4 py-2.5 font-bold text-slate-900 transition-transform touch-manipulation active:scale-95"
+            >
               Guardar
             </button>
           </div>
@@ -109,7 +115,7 @@ export function Players() {
 
       <PlayerList players={fieldPlayers} canEdit={unlocked} />
 
-      <h2 className="text-lg font-bold text-white">Porteros</h2>
+      <h2 className="text-2xl font-extrabold tracking-tight text-white">Porteros</h2>
       <PlayerList players={goalkeepers} canEdit={unlocked} />
     </div>
   );
@@ -128,30 +134,24 @@ function PlayerList({
         <div
           key={player.id}
           className={[
-            'flex items-center justify-between rounded-xl border-2 border-slate-700 bg-slate-800 p-3',
+            'flex items-center justify-between rounded-2xl bg-white/5 p-3 ring-1 ring-white/10',
             player.active ? '' : 'opacity-50',
           ].join(' ')}
         >
           <Link to={`/jugadores/${player.id}`} className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 font-bold text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold text-white">
               {player.number}
             </span>
-            <span className="font-semibold text-white">{player.name}</span>
+            <span className="font-bold text-white">{player.name}</span>
           </Link>
           {canEdit && (
-            <button
-              type="button"
-              onClick={() => toggleActive(player)}
-              className={[
-                'rounded-lg border-2 px-3 py-1 text-sm font-semibold',
-                player.active ? 'border-emerald-500 text-emerald-400' : 'border-slate-500 text-slate-400',
-              ].join(' ')}
-            >
-              {player.active ? 'Activo' : 'Inactivo'}
+            <button type="button" onClick={() => toggleActive(player)} className="touch-manipulation">
+              <Badge color={player.active ? 'emerald' : 'slate'}>{player.active ? 'Activo' : 'Inactivo'}</Badge>
             </button>
           )}
         </div>
       ))}
+      {players.length === 0 && <p className="p-2 text-slate-400">Sin jugadores.</p>}
     </div>
   );
 }

@@ -9,6 +9,9 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const inputClass = 'mt-1 rounded-xl bg-white/5 px-3 py-2.5 text-white ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-amber-400';
+const inputErrorClass = 'mt-1 rounded-xl bg-white/5 px-3 py-2.5 text-white ring-2 ring-rose-500 outline-none';
+
 export function CreateMatch() {
   const players = useAppData((s) => s.players);
   const matches = useAppData((s) => s.matches);
@@ -63,8 +66,8 @@ export function CreateMatch() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <h2 className="text-lg font-bold text-white">Nuevo partido</h2>
+    <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
+      <h2 className="text-2xl font-extrabold tracking-tight text-white">Nuevo partido</h2>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col text-sm text-slate-300">
@@ -75,10 +78,7 @@ export function CreateMatch() {
               setOpponent(e.target.value);
               setOpponentError(null);
             }}
-            className={[
-              'mt-1 rounded-lg border-2 bg-slate-800 px-3 py-2 text-white',
-              opponentError ? 'border-rose-500' : 'border-slate-600',
-            ].join(' ')}
+            className={opponentError ? inputErrorClass : inputClass}
             placeholder="Nombre del rival"
           />
           {opponentError && <span className="mt-1 text-xs font-semibold text-rose-400">{opponentError}</span>}
@@ -92,23 +92,16 @@ export function CreateMatch() {
               setDate(e.target.value);
               setDateError(null);
             }}
-            className={[
-              'mt-1 rounded-lg border-2 bg-slate-800 px-3 py-2 text-white',
-              dateError ? 'border-rose-500' : 'border-slate-600',
-            ].join(' ')}
+            className={dateError ? inputErrorClass : inputClass}
           />
           {dateError && <span className="mt-1 text-xs font-semibold text-rose-400">{dateError}</span>}
         </label>
         <label className="flex flex-col text-sm text-slate-300">
           Competición
-          <input
-            value={competition}
-            onChange={(e) => setCompetition(e.target.value)}
-            className="mt-1 rounded-lg border-2 border-slate-600 bg-slate-800 px-3 py-2 text-white"
-          />
+          <input value={competition} onChange={(e) => setCompetition(e.target.value)} className={inputClass} />
         </label>
         <label className="flex items-center gap-2 self-end text-sm text-slate-300">
-          <input type="checkbox" checked={isHome} onChange={(e) => setIsHome(e.target.checked)} className="h-5 w-5" />
+          <input type="checkbox" checked={isHome} onChange={(e) => setIsHome(e.target.checked)} className="h-5 w-5 accent-amber-500" />
           Jugamos en casa
         </label>
       </div>
@@ -122,8 +115,8 @@ export function CreateMatch() {
               type="button"
               onClick={() => toggleCalled(p.id)}
               className={[
-                'rounded-full border-2 px-3 py-2 text-sm font-semibold',
-                calledIds.has(p.id) ? 'border-amber-500 bg-amber-500/20 text-amber-300' : 'border-slate-600 text-slate-400',
+                'rounded-full px-3 py-2 text-sm font-bold transition-transform touch-manipulation active:scale-95',
+                calledIds.has(p.id) ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40' : 'bg-white/5 text-slate-400 ring-1 ring-white/10',
               ].join(' ')}
             >
               {p.number} · {p.name}
@@ -132,7 +125,11 @@ export function CreateMatch() {
         </div>
       </div>
 
-      <button type="button" onClick={handleSubmit} className="rounded-xl bg-amber-500 py-4 text-lg font-bold text-slate-900">
+      <button
+        type="button"
+        onClick={handleSubmit}
+        className="rounded-2xl bg-amber-500 py-4 text-lg font-bold text-slate-900 shadow-lg shadow-amber-500/20 transition-transform touch-manipulation active:scale-[0.98]"
+      >
         Crear partido y empezar a anotar
       </button>
     </div>

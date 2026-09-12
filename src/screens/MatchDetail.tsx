@@ -43,13 +43,13 @@ export function MatchDetail() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <div>
-        <h2 className="text-2xl font-bold text-white">Bera Bera Senior vs {match.opponent}</h2>
+    <div className="flex flex-col gap-7 p-4 pt-6 sm:p-6">
+      <div className="rounded-3xl bg-white/5 p-4 ring-1 ring-white/10 sm:p-6">
+        <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Bera Bera Senior vs {match.opponent}</h2>
         <p className="text-slate-400">
           {formatDate(match.date)} · {match.competition} · {match.isHome ? 'Casa' : 'Fuera'}
         </p>
-        <p className="mt-2 text-4xl font-black text-white">
+        <p className="mt-3 text-4xl font-black text-white">
           {goalsFor} - {goalsAgainst}
           <span className="ml-3 text-base font-semibold text-amber-400">
             {outcome === 'win' ? 'Victoria' : outcome === 'loss' ? 'Derrota' : 'Empate'}
@@ -58,13 +58,13 @@ export function MatchDetail() {
       </div>
 
       <section>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">Jugadores convocados</h3>
           {unlocked && (
             <button
               type="button"
               onClick={() => setShowSquad(true)}
-              className="rounded-lg border-2 border-slate-600 px-3 py-1.5 text-sm font-semibold text-slate-300"
+              className="rounded-full bg-white/8 px-3.5 py-2 text-xs font-bold text-slate-200 transition-transform touch-manipulation active:scale-95"
             >
               Editar convocatoria
             </button>
@@ -74,10 +74,11 @@ export function MatchDetail() {
       </section>
 
       <section>
-        <h3 className="mb-2 text-lg font-bold text-white">Timeline</h3>
-        <div className="flex flex-col gap-1">
+        <h3 className="mb-3 text-lg font-bold text-white">Timeline</h3>
+        <div className="flex flex-col gap-1.5">
           {buildTimeline(matchEvents, players).map((row) => {
-            const rowClass = 'flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-2 text-left text-sm text-white';
+            const rowClass =
+              'flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left text-sm text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]';
             if (row.kind === 'substitution') {
               const content = (
                 <>
