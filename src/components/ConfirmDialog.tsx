@@ -21,11 +21,18 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm" onClick={onCancel}>
+    <div
+      className="animate-backdrop-in fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-3"
+      onClick={onCancel}
+    >
       <div
-        className="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-slate-900/95 p-5 shadow-2xl ring-1 ring-white/10"
+        className="animate-sheet-up flex w-full max-w-sm flex-col gap-4 rounded-t-3xl bg-slate-900/95 p-5 shadow-2xl ring-1 ring-white/10 sm:rounded-3xl"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="-mt-1 mb-1 flex justify-center sm:hidden">
+          <span className="h-1.5 w-10 rounded-full bg-white/15" />
+        </div>
         <div>
           <h3 className="text-lg font-bold text-white">{title}</h3>
           {message && <p className="mt-1 text-sm text-slate-400">{message}</p>}
