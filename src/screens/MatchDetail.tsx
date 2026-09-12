@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
-import { computeMatchScore, matchOutcome } from '../stats/matchStats';
+import { computeMatchScore, computeTeamMatchStats, computeTeamZoneStats, matchOutcome } from '../stats/matchStats';
 import { buildTimeline } from '../stats/timeline';
 import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock, formatDate } from '../utils/time';
 import { MatchRosterTable } from '../components/MatchRosterTable';
 import { EditSquadModal } from '../components/EditSquadModal';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
+import { StatCard } from '../components/StatCard';
 import { updateEventAndReload, deleteEventAndReload } from '../stores/eventActions';
 import { dataProvider } from '../data';
 import { writeOrQueue } from '../data/offline/queue';
@@ -32,6 +33,11 @@ export function MatchDetail() {
 
   const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
   const outcome = matchOutcome(goalsFor, goalsAgainst);
+  const team = computeTeamMatchStats(matchEvents);
+  const attackZones = computeTeamZoneStats(matchEvents, 'shot');
+  const concededZones = computeTeamZoneStats(matchEvents, 'gk_shot');
+  const maxAttackShots = Math.max(1, ...attackZones.map((z) => z.shots));
+  const maxConcededShots = Math.max(1, ...concededZones.map((z) => z.shots));
   const roster = players.filter((p) => match.calledPlayerIds.includes(p.id));
   const onCourtIdsAtEnd = new Set(matchEvents.filter((e) => e.eventType === 'court_change').map((e) => e.playerId));
   const lockedPlayerIds = new Set([...onCourtIdsAtEnd, ...matchEvents.map((e) => e.playerId)]);
@@ -56,6 +62,59 @@ export function MatchDetail() {
           </span>
         </p>
       </div>
+
+      <section>
+        <h3 className="mb-3 text-lg font-bold text-white">Equipo</h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <StatCard label="Lanz." value={team.shots} />
+          <StatCard label="% Acierto" value={`${team.shotPct}%`} />
+          <StatCard label="Asist." value={team.assists} />
+          <StatCard label="Pérdidas" value={team.turnovers} />
+          <StatCard label="Recup." value={team.recoveries} />
+          <StatCard label="Amonest." value={team.yellowCards + team.redCards + team.blueCards} />
+          <StatCard label="Exclus." value={team.exclusions} />
+          <StatCard label="Lanz. recib." value={team.shotsFaced} />
+          <StatCard label="Paradas" value={team.saves} />
+          <StatCard label="% Paradas" value={`${team.savePct}%`} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs text-slate-500">Zonas de gol del equipo</p>
+            <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
+              {attackZones.map((z) => (
+                <div
+                  key={z.zone}
+                  className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
+                  style={{ backgroundColor: `rgba(37, 99, 235, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxAttackShots) : 0})` }}
+                >
+                  <p className="text-xs text-slate-300">Zona {z.zone}</p>
+                  <p className="font-bold">
+                    {z.goals}/{z.shots}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-xs text-slate-500">Zonas de gol encajadas</p>
+            <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
+              {concededZones.map((z) => (
+                <div
+                  key={z.zone}
+                  className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
+                  style={{ backgroundColor: `rgba(244, 63, 94, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxConcededShots) : 0})` }}
+                >
+                  <p className="text-xs text-slate-300">Zona {z.zone}</p>
+                  <p className="font-bold">
+                    {z.goals}/{z.shots}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section>
         <div className="mb-3 flex items-center justify-between">

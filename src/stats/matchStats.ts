@@ -196,3 +196,61 @@ export function computeZoneStats(events: MatchEvent[], playerId: string, kind: '
   }
   return zones;
 }
+
+/** Same breakdown as computeZoneStats, but for every player at once — the team's overall shot map. */
+export function computeTeamZoneStats(events: MatchEvent[], kind: 'shot' | 'gk_shot'): ZoneStat[] {
+  const zones: ZoneStat[] = Array.from({ length: 9 }, (_, i) => ({ zone: (i + 1) as Zone, shots: 0, goals: 0 }));
+  for (const e of events) {
+    if (e.eventType !== kind) continue;
+    if (e.eventData.zone === undefined) continue;
+    const zone = zones[e.eventData.zone - 1];
+    zone.shots++;
+    if (e.eventData.result === 'goal') zone.goals++;
+  }
+  return zones;
+}
+
+export interface TeamMatchStats {
+  /** Open play + penalties combined. */
+  shots: number;
+  goals: number;
+  shotPct: number;
+  assists: number;
+  turnovers: number;
+  recoveries: number;
+  steps: number;
+  yellowCards: number;
+  redCards: number;
+  blueCards: number;
+  exclusions: number;
+  shotsFaced: number;
+  saves: number;
+  goalsConceded: number;
+  savePct: number;
+}
+
+/** The same tallies as computeFieldPlayerStats/computeGoalkeeperStats, but summed over the whole team for one match. */
+export function computeTeamMatchStats(events: MatchEvent[]): TeamMatchStats {
+  const shots = events.filter((e): e is Extract<MatchEvent, { eventType: 'shot' }> => e.eventType === 'shot');
+  const goals = shots.filter((e) => e.eventData.result === 'goal').length;
+  const gkShots = events.filter((e): e is Extract<MatchEvent, { eventType: 'gk_shot' }> => e.eventType === 'gk_shot');
+  const saves = gkShots.filter((e) => e.eventData.result === 'save').length;
+  const goalsConceded = gkShots.filter((e) => e.eventData.result === 'goal').length;
+  return {
+    shots: shots.length,
+    goals,
+    shotPct: shots.length ? Math.round((goals / shots.length) * 100) : 0,
+    assists: events.filter((e) => e.eventType === 'assist').length,
+    turnovers: events.filter((e) => e.eventType === 'turnover').length,
+    recoveries: events.filter((e) => e.eventType === 'recovery').length,
+    steps: events.filter((e) => e.eventType === 'steps').length,
+    yellowCards: events.filter((e) => e.eventType === 'card_yellow').length,
+    redCards: events.filter((e) => e.eventType === 'card_red').length,
+    blueCards: events.filter((e) => e.eventType === 'card_blue').length,
+    exclusions: events.filter((e) => e.eventType === 'exclusion_2min').length,
+    shotsFaced: gkShots.length,
+    saves,
+    goalsConceded,
+    savePct: gkShots.length ? Math.round((saves / gkShots.length) * 100) : 0,
+  };
+}
