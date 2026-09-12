@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Bera Bera Senior — Estadísticas',
         short_name: 'Bera Bera Stats',
         description: 'Anotación y estadísticas de balonmano para Bera Bera Senior',
-        theme_color: '#1f6fb8',
-        background_color: '#020617',
+        theme_color: '#06070c',
+        background_color: '#06070c',
         display: 'standalone',
         orientation: 'landscape',
         icons: [

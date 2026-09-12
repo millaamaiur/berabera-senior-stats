@@ -1,13 +1,15 @@
+import { lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Root } from './app/Root';
-import { Home } from './screens/Home';
-import { Matches } from './screens/Matches';
-import { CreateMatch } from './screens/CreateMatch';
-import { MatchDetail } from './screens/MatchDetail';
-import { AnotarSession } from './screens/AnotarSession';
-import { Players } from './screens/Players';
-import { PlayerProfile } from './screens/PlayerProfile';
-import { Unlock } from './screens/Unlock';
+
+const Home = lazy(() => import('./screens/Home').then((m) => ({ default: m.Home })));
+const Matches = lazy(() => import('./screens/Matches').then((m) => ({ default: m.Matches })));
+const CreateMatch = lazy(() => import('./screens/CreateMatch').then((m) => ({ default: m.CreateMatch })));
+const MatchDetail = lazy(() => import('./screens/MatchDetail').then((m) => ({ default: m.MatchDetail })));
+const AnotarSession = lazy(() => import('./screens/AnotarSession').then((m) => ({ default: m.AnotarSession })));
+const Players = lazy(() => import('./screens/Players').then((m) => ({ default: m.Players })));
+const PlayerProfile = lazy(() => import('./screens/PlayerProfile').then((m) => ({ default: m.PlayerProfile })));
+const Unlock = lazy(() => import('./screens/Unlock').then((m) => ({ default: m.Unlock })));
 
 export default function App() {
   return (

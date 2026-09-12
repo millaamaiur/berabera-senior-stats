@@ -12,7 +12,10 @@ import type {
 import { HALFTIME_SECONDS } from '../domain/types';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { useAppData } from './useAppData';
+import { useToast } from './useToast';
 import { writeOrQueue } from '../data/offline/queue';
+import { describeEventForToast } from '../utils/eventLabels';
+import { HAPTIC, vibrate } from '../utils/haptics';
 
 /** A handball side can only ever have 6 court players + 1 goalkeeper on the field at once. */
 export const COURT_LIMITS = { player: 6, goalkeeper: 1 } as const;
@@ -253,6 +256,12 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     for (const event of newEvents) {
       await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
     }
+
+    const acceptedIn = inIds.filter((id) => !rejected.includes(id));
+    const outNames = outIds.map((id) => players.find((p) => p.id === id)?.name ?? '?').join(', ');
+    const inNames = acceptedIn.map((id) => players.find((p) => p.id === id)?.name ?? '?').join(', ');
+    useToast.getState().show(outNames && inNames ? `Cambio: ${outNames} → ${inNames}` : `Cambio: ${outNames || inNames}`);
+    vibrate(HAPTIC.tap);
     return rejected;
   },
 
@@ -280,6 +289,10 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const last = [...events].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
     set({ events: events.filter((e) => e.id !== last.id) });
     await writeOrQueue({ collection: 'events', method: 'delete', payload: last.id }, () => dataProvider.events.delete(last.id));
+
+    const playerName = useAppData.getState().players.find((p) => p.id === last.playerId)?.name;
+    useToast.getState().show(`Deshecho: ${describeEventForToast(last, playerName ?? '—')}`);
+    vibrate(HAPTIC.undo);
   },
 
   updateEvent: async (event: MatchEvent) => {
@@ -321,4 +334,9 @@ async function pushEvent(
   const { events } = get();
   set({ events: [...events, event] });
   await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
+
+  const playerName = useAppData.getState().players.find((p) => p.id === playerId)?.name ?? '—';
+  useToast.getState().show(describeEventForToast(event, playerName));
+  const isGoal = (event.eventType === 'shot' || event.eventType === 'gk_shot') && event.eventData.result === 'goal';
+  vibrate(isGoal ? HAPTIC.goal : HAPTIC.tap);
 }

@@ -35,3 +35,15 @@ export function describeEventDetail(event: MatchEvent): string | null {
       return null;
   }
 }
+
+/** One-line confirmation for the toast shown right after recording a live event. */
+export function describeEventForToast(event: MatchEvent, playerName: string): string {
+  switch (event.eventType) {
+    case 'shot':
+      return event.eventData.result === 'goal' ? `¡Gol de ${playerName}!` : `Fallo de ${playerName}`;
+    case 'gk_shot':
+      return event.eventData.result === 'goal' ? `Gol encajado (${playerName})` : `Parada de ${playerName}`;
+    default:
+      return `${EVENT_LABELS[event.eventType]} · ${playerName}`;
+  }
+}
