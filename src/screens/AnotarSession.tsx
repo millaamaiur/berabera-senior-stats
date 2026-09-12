@@ -35,6 +35,7 @@ export function AnotarSession() {
   const startClock = useLiveMatchStore((s) => s.startClock);
   const pauseClock = useLiveMatchStore((s) => s.pauseClock);
   const resetClock = useLiveMatchStore((s) => s.resetClock);
+  const checkHalftime = useLiveMatchStore((s) => s.checkHalftime);
   const getElapsedSeconds = useLiveMatchStore((s) => s.getElapsedSeconds);
   const toggleCourt = useLiveMatchStore((s) => s.toggleCourt);
   const undo = useLiveMatchStore((s) => s.undo);
@@ -64,8 +65,12 @@ export function AnotarSession() {
 
   useEffect(() => {
     if (!match?.clock.running) return;
-    const interval = setInterval(() => forceTick((t) => t + 1), 1000);
+    const interval = setInterval(() => {
+      forceTick((t) => t + 1);
+      checkHalftime();
+    }, 1000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.clock.running]);
 
   if (!unlocked) {
@@ -98,6 +103,7 @@ export function AnotarSession() {
     : !lineupComplete
       ? 'Completa la alineación (6 + portero) para iniciar'
       : 'Solo puedes iniciar el partido el día programado';
+  const showSecondHalfPrompt = match.clock.halftimeReached && !match.clock.secondHalfStarted && !match.clock.running;
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
 
@@ -174,14 +180,17 @@ export function AnotarSession() {
           {goalsFor} - {goalsAgainst}
         </p>
         <div className="flex items-center gap-2">
-          <span
-            className={[
-              'w-20 rounded-lg border-2 bg-slate-900 px-2 py-2 text-center font-mono text-2xl transition-colors',
-              match.clock.running ? 'border-emerald-500 text-emerald-400' : 'border-slate-600 text-slate-400',
-            ].join(' ')}
-          >
-            {formatClock(getElapsedSeconds())}
-          </span>
+          <div className="flex flex-col items-center">
+            <span
+              className={[
+                'w-20 rounded-lg border-2 bg-slate-900 px-2 py-2 text-center font-mono text-2xl transition-colors',
+                match.clock.running ? 'border-emerald-500 text-emerald-400' : 'border-slate-600 text-slate-400',
+              ].join(' ')}
+            >
+              {formatClock(getElapsedSeconds())}
+            </span>
+            {showSecondHalfPrompt && <span className="mt-0.5 text-[0.65rem] font-bold text-amber-400">DESCANSO</span>}
+          </div>
           {match.clock.running ? (
             <button type="button" onClick={() => pauseClock()} className={btnClass('slate')}>
               Pausar
@@ -191,10 +200,10 @@ export function AnotarSession() {
               type="button"
               onClick={() => startClock()}
               disabled={!canStart}
-              className={btnClass('emerald') + (canStart ? '' : ' opacity-40')}
+              className={btnClass(showSecondHalfPrompt ? 'amber' : 'emerald') + (canStart ? '' : ' opacity-40')}
               title={startDisabledReason}
             >
-              Iniciar
+              {showSecondHalfPrompt ? 'Iniciar segunda parte' : 'Iniciar'}
             </button>
           )}
           <button type="button" onClick={handleReset} className={btnClass('slate')}>

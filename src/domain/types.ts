@@ -25,7 +25,14 @@ export interface MatchClock {
   lastStartedAt: number | null;
   /** True forever once the clock has been started for the first time — survives pause/reset. */
   hasStartedOnce: boolean;
+  /** True once the clock has auto-paused at the 30-minute mark (first half over). */
+  halftimeReached: boolean;
+  /** True once "Iniciar segunda parte" has been pressed — the halftime prompt won't show again. */
+  secondHalfStarted: boolean;
 }
+
+/** Elapsed seconds at which the first half ends and the clock auto-pauses. */
+export const HALFTIME_SECONDS = 30 * 60;
 
 export interface Match {
   id: string;

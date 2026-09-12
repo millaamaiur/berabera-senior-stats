@@ -9,6 +9,7 @@ import type {
   MatchEvent,
   SimpleFieldEventType,
 } from '../domain/types';
+import { HALFTIME_SECONDS } from '../domain/types';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { useAppData } from './useAppData';
 
@@ -29,6 +30,7 @@ interface LiveMatchState {
   startClock: () => Promise<void>;
   pauseClock: () => Promise<void>;
   resetClock: () => Promise<void>;
+  checkHalftime: () => Promise<void>;
   getElapsedSeconds: () => number;
   updateCalledPlayers: (calledPlayerIds: string[]) => Promise<void>;
   updateDate: (date: string) => Promise<void>;
@@ -91,7 +93,13 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     if (!match || match.clock.running) return;
     const updated: Match = {
       ...match,
-      clock: { ...match.clock, running: true, lastStartedAt: Date.now(), hasStartedOnce: true },
+      clock: {
+        ...match.clock,
+        running: true,
+        lastStartedAt: Date.now(),
+        hasStartedOnce: true,
+        secondHalfStarted: match.clock.halftimeReached ? true : match.clock.secondHalfStarted,
+      },
     };
     await persistMatch(updated);
     set({ match: updated });
@@ -103,7 +111,7 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const elapsedSeconds = getElapsedSeconds();
     const updated: Match = {
       ...match,
-      clock: { elapsedSeconds, running: false, lastStartedAt: null, hasStartedOnce: match.clock.hasStartedOnce },
+      clock: { ...match.clock, elapsedSeconds, running: false, lastStartedAt: null },
     };
     await persistMatch(updated);
     set({ match: updated });
@@ -114,7 +122,33 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     if (!match) return;
     const updated: Match = {
       ...match,
-      clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: match.clock.hasStartedOnce },
+      clock: {
+        elapsedSeconds: 0,
+        running: false,
+        lastStartedAt: null,
+        hasStartedOnce: match.clock.hasStartedOnce,
+        halftimeReached: false,
+        secondHalfStarted: false,
+      },
+    };
+    await persistMatch(updated);
+    set({ match: updated });
+  },
+
+  /** Auto-pauses the clock the moment it crosses the 30-minute mark, once per match. */
+  checkHalftime: async () => {
+    const { match, getElapsedSeconds } = get();
+    if (!match || !match.clock.running || match.clock.halftimeReached) return;
+    if (getElapsedSeconds() < HALFTIME_SECONDS) return;
+    const updated: Match = {
+      ...match,
+      clock: {
+        ...match.clock,
+        elapsedSeconds: HALFTIME_SECONDS,
+        running: false,
+        lastStartedAt: null,
+        halftimeReached: true,
+      },
     };
     await persistMatch(updated);
     set({ match: updated });

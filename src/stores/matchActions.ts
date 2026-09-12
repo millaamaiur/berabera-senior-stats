@@ -23,7 +23,7 @@ export async function createMatch(input: NewMatchInput): Promise<Match> {
     isHome: input.isHome,
     calledPlayerIds: input.calledPlayerIds,
     status: 'scheduled',
-    clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false },
+    clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false, halftimeReached: false, secondHalfStarted: false },
     createdAt: Date.now(),
     seasonId: season?.id ?? '',
   };
@@ -55,7 +55,7 @@ export async function cancelMatch(match: Match): Promise<void> {
   await dataProvider.matches.upsert({
     ...match,
     status: 'scheduled',
-    clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false },
+    clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false, halftimeReached: false, secondHalfStarted: false },
   });
   await useAppData.getState().reload();
 }
