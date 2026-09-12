@@ -20,3 +20,11 @@ export function daysUntil(iso: string): number {
   target.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
+
+/** "Hoy" / "En 3 días" / "Pendiente" (for a date already in the past) from an ISO date. */
+export function scheduleLabel(iso: string): string {
+  const days = daysUntil(iso);
+  if (days === 0) return 'Hoy';
+  if (days > 0) return `En ${days} día${days === 1 ? '' : 's'}`;
+  return 'Pendiente';
+}

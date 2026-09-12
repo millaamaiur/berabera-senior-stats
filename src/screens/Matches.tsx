@@ -1,21 +1,22 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
 import { computeMatchScore, matchOutcome } from '../stats/matchStats';
 import { deleteMatch } from '../stores/matchActions';
-import { daysUntil, formatDate } from '../utils/time';
+import { formatDate, scheduleLabel } from '../utils/time';
 import type { Match } from '../domain/types';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { Badge } from '../components/Badge';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { useAuthStore } from '../stores/useAuthStore';
 
 const OUTCOME_LABEL: Record<string, string> = { win: 'V', loss: 'D', draw: 'E' };
 const OUTCOME_COLOR: Record<string, 'emerald' | 'rose' | 'slate'> = { win: 'emerald', loss: 'rose', draw: 'slate' };
 
-function scheduleLabel(match: Match): string {
-  const days = daysUntil(match.date);
-  if (days === 0) return 'Hoy';
-  if (days > 0) return `En ${days} día${days === 1 ? '' : 's'}`;
-  return 'Pendiente';
+type StatusFilter = 'all' | 'played' | 'upcoming';
+
+function hasBeenPlayed(match: Match): boolean {
+  return match.status === 'finished' || match.clock.hasStartedOnce;
 }
 
 function TrashIcon() {
@@ -27,13 +28,30 @@ function TrashIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
 export function Matches() {
   const matches = useAppData((s) => s.matches);
   const events = useAppData((s) => s.events);
   const { ask, dialog } = useConfirmDialog();
   const unlocked = useAuthStore((s) => s.unlocked);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const sorted = [...matches].sort((a, b) => b.date.localeCompare(a.date));
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return [...matches]
+      .filter((m) => !q || m.opponent.toLowerCase().includes(q))
+      .filter((m) => statusFilter === 'all' || (statusFilter === 'played') === hasBeenPlayed(m))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [matches, query, statusFilter]);
 
   async function handleDelete(match: Match) {
     const hasStats = events.some((e) => e.matchId === match.id);
@@ -72,8 +90,29 @@ export function Matches() {
         )}
       </div>
 
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2.5 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-amber-400 sm:w-64">
+          <SearchIcon />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar rival..."
+            className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+          />
+        </label>
+        <SegmentedControl
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: 'all', label: 'Todos' },
+            { value: 'played', label: 'Jugados' },
+            { value: 'upcoming', label: 'Próximos' },
+          ]}
+        />
+      </div>
+
       <div className="flex flex-col gap-2">
-        {sorted.map((match) => {
+        {filtered.map((match) => {
           const matchEvents = events.filter((e) => e.matchId === match.id);
           const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
           const outcome = matchOutcome(goalsFor, goalsAgainst);
@@ -99,7 +138,7 @@ export function Matches() {
                   ) : match.clock.hasStartedOnce ? (
                     <Badge color="amber">EN VIVO</Badge>
                   ) : (
-                    <Badge color="slate">{scheduleLabel(match)}</Badge>
+                    <Badge color="slate">{scheduleLabel(match.date)}</Badge>
                   )}
                 </div>
               </Link>
@@ -116,7 +155,9 @@ export function Matches() {
             </div>
           );
         })}
-        {sorted.length === 0 && <p className="p-2 text-slate-400">Todavía no hay partidos.</p>}
+        {filtered.length === 0 && (
+          <p className="p-2 text-slate-400">{matches.length === 0 ? 'Todavía no hay partidos.' : 'Ningún partido coincide con la búsqueda.'}</p>
+        )}
       </div>
       {dialog}
     </div>

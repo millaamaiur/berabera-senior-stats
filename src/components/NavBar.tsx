@@ -1,8 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import type { MouseEvent } from 'react';
 import type { ReactNode } from 'react';
 import { ClubLogo } from './ClubLogo';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useSyncStatus } from '../stores/useSyncStatus';
+import { useLiveMatchStore } from '../stores/useLiveMatchStore';
+import { useToast } from '../stores/useToast';
 
 const ICON_PROPS = {
   viewBox: '0 0 24 24',
@@ -60,6 +63,15 @@ export function NavBar() {
   const navigate = useNavigate();
   const pendingCount = useSyncStatus((s) => s.pendingCount);
   const failedCount = useSyncStatus((s) => s.failedCount);
+  // Only the clock actually running blocks navigation — paused (including at
+  // halftime, where the coach may well want to check Inicio/Partidos) leaves it open.
+  const matchRunning = useLiveMatchStore((s) => s.match?.clock.running ?? false);
+
+  function guardNav(e: MouseEvent) {
+    if (!matchRunning) return;
+    e.preventDefault();
+    useToast.getState().show('Pausa el partido para poder navegar');
+  }
 
   return (
     <nav
@@ -93,10 +105,12 @@ export function NavBar() {
             key={tab.to}
             to={tab.to}
             end={tab.end}
+            onClick={guardNav}
+            aria-disabled={matchRunning}
             className={({ isActive }) =>
               [
                 'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold transition-colors touch-manipulation sm:w-full sm:flex-none sm:py-4 sm:text-sm',
-                isActive ? 'bg-amber-500/15 text-amber-400' : 'text-slate-400 active:bg-white/5',
+                matchRunning ? 'text-slate-600' : isActive ? 'bg-amber-500/15 text-amber-400' : 'text-slate-400 active:bg-white/5',
               ].join(' ')
             }
           >

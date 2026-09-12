@@ -6,9 +6,11 @@ import { ClubLogo } from '../components/ClubLogo';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { StatCard } from '../components/StatCard';
 import { SegmentedControl } from '../components/SegmentedControl';
+import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
+import { daysUntil, formatDate, scheduleLabel } from '../utils/time';
 
 type SortKey = 'goals' | 'turnovers' | 'recoveries' | 'exclusions';
 type GkSortKey = 'saves' | 'goalsConceded' | 'savePct';
@@ -46,6 +48,12 @@ export function Home() {
   const seasonEvents = useMemo(() => events.filter((e) => seasonMatchIds.has(e.matchId)), [events, seasonMatchIds]);
 
   const team = useMemo(() => computeTeamSeasonStats(seasonMatches, seasonEvents), [seasonMatches, seasonEvents]);
+
+  const nextMatch = useMemo(() => {
+    return [...matches]
+      .filter((m) => m.status !== 'finished' && !m.clock.hasStartedOnce && daysUntil(m.date) >= 0)
+      .sort((a, b) => a.date.localeCompare(b.date))[0];
+  }, [matches]);
 
   const rows = useMemo(() => {
     return players
@@ -85,6 +93,22 @@ export function Home() {
       <div className="flex flex-col items-center gap-2 sm:hidden">
         <ClubLogo className="h-16 w-16 object-contain" />
       </div>
+
+      {nextMatch && (
+        <Link
+          to={`/anotar/${nextMatch.id}`}
+          className="flex items-center justify-between gap-3 rounded-3xl bg-gradient-to-br from-amber-500/15 via-white/5 to-transparent p-4 ring-1 ring-amber-500/30 transition-transform touch-manipulation active:scale-[0.99] sm:p-5"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-400">Próximo partido</p>
+            <p className="mt-1 truncate text-lg font-extrabold text-white">vs {nextMatch.opponent}</p>
+            <p className="text-sm text-slate-400">
+              {formatDate(nextMatch.date)} · {nextMatch.competition} · {nextMatch.isHome ? 'Casa' : 'Fuera'}
+            </p>
+          </div>
+          <Badge color="amber">{scheduleLabel(nextMatch.date)}</Badge>
+        </Link>
+      )}
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
