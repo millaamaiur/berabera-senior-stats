@@ -1,11 +1,19 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
-import { computeDefensiveOnCourtStats, computeFieldPlayerStats, computeGoalkeeperStats, computeZoneStats } from '../stats/matchStats';
+import {
+  computeDefensiveOnCourtStats,
+  computeFieldPlayerStats,
+  computeGoalkeeperStats,
+  computeMatchScore,
+  computeZoneStats,
+  matchOutcome,
+} from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { formatClock, formatDate } from '../utils/time';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { StatCard } from '../components/StatCard';
+import { Badge } from '../components/Badge';
 
 export function PlayerProfile() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +32,10 @@ export function PlayerProfile() {
   }, [player, matches, events]);
 
   const playedMatches = useMemo(
-    () => matches.filter((m) => player && m.calledPlayerIds.includes(player.id)),
+    () =>
+      matches.filter(
+        (m) => player && m.calledPlayerIds.includes(player.id) && (m.status === 'finished' || m.clock.hasStartedOnce)
+      ),
     [matches, player]
   );
 
@@ -128,18 +139,34 @@ export function PlayerProfile() {
       <section>
         <h3 className="mb-2 text-lg font-bold text-white">Partidos</h3>
         <div className="flex flex-col gap-2">
-          {playedMatches.map((m) => (
-            <Link
-              key={m.id}
-              to={`/partidos/${m.id}`}
-              className="flex items-center justify-between rounded-2xl bg-white/5 p-3 text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]"
-            >
-              <span className="font-semibold">
-                {formatDate(m.date)} vs {m.opponent}
-              </span>
-              <span className="text-sm text-slate-400">{m.status}</span>
-            </Link>
-          ))}
+          {playedMatches.map((m) => {
+            const matchEvents = events.filter((e) => e.matchId === m.id);
+            const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
+            const outcome = matchOutcome(goalsFor, goalsAgainst);
+            return (
+              <Link
+                key={m.id}
+                to={`/partidos/${m.id}`}
+                className="flex items-center justify-between rounded-2xl bg-white/5 p-3 text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]"
+              >
+                <span className="font-semibold">
+                  {formatDate(m.date)} vs {m.opponent}
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">
+                    {goalsFor} - {goalsAgainst}
+                  </span>
+                  {m.status === 'finished' ? (
+                    <Badge color={outcome === 'win' ? 'emerald' : outcome === 'loss' ? 'rose' : 'slate'}>
+                      {outcome === 'win' ? 'V' : outcome === 'loss' ? 'D' : 'E'}
+                    </Badge>
+                  ) : (
+                    <Badge color="amber">EN VIVO</Badge>
+                  )}
+                </span>
+              </Link>
+            );
+          })}
           {playedMatches.length === 0 && <p className="p-2 text-slate-400">Sin partidos todavía.</p>}
         </div>
       </section>
