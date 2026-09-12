@@ -65,7 +65,6 @@ export interface FieldPlayerStats {
   penaltiesTaken: number;
   penaltiesScored: number;
   penaltyScorePct: number;
-  assists: number;
   turnovers: number;
   recoveries: number;
   steps: number;
@@ -90,7 +89,6 @@ export function computeFieldPlayerStats(events: MatchEvent[], playerId: string):
     penaltiesTaken: penalties.length,
     penaltiesScored,
     penaltyScorePct: penalties.length ? Math.round((penaltiesScored / penalties.length) * 100) : 0,
-    assists: own.filter((e) => e.eventType === 'assist').length,
     turnovers: own.filter((e) => e.eventType === 'turnover').length,
     recoveries: own.filter((e) => e.eventType === 'recovery').length,
     steps: own.filter((e) => e.eventType === 'steps').length,
@@ -215,7 +213,6 @@ export interface TeamMatchStats {
   shots: number;
   goals: number;
   shotPct: number;
-  assists: number;
   turnovers: number;
   recoveries: number;
   steps: number;
@@ -240,7 +237,6 @@ export function computeTeamMatchStats(events: MatchEvent[]): TeamMatchStats {
     shots: shots.length,
     goals,
     shotPct: shots.length ? Math.round((goals / shots.length) * 100) : 0,
-    assists: events.filter((e) => e.eventType === 'assist').length,
     turnovers: events.filter((e) => e.eventType === 'turnover').length,
     recoveries: events.filter((e) => e.eventType === 'recovery').length,
     steps: events.filter((e) => e.eventType === 'steps').length,

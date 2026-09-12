@@ -11,7 +11,6 @@ const FIELD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
   { type: 'turnover', label: 'Pérdida' },
   { type: 'recovery', label: 'Recuperación' },
   { type: 'steps', label: 'Pasos' },
-  { type: 'assist', label: 'Asistencia' },
 ];
 
 const CARD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [

@@ -68,7 +68,6 @@ export function MatchDetail() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           <StatCard label="Lanz." value={team.shots} />
           <StatCard label="% Acierto" value={`${team.shotPct}%`} />
-          <StatCard label="Asist." value={team.assists} />
           <StatCard label="Pérdidas" value={team.turnovers} />
           <StatCard label="Recup." value={team.recoveries} />
           <StatCard label="Amonest." value={team.yellowCards + team.redCards + team.blueCards} />

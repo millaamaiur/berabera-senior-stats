@@ -31,7 +31,7 @@ export function MatchRosterTable({ roster, matchEvents, elapsedSeconds }: MatchR
                   {formatClock(minutes)} ·{' '}
                   {gk
                     ? `${gk.saves}/${gk.shotsFaced} paradas`
-                    : `${fs!.goals}/${fs!.shots} goles · ${fs!.turnovers} pérd. · ${fs!.assists} asist. · ${fs!.recoveries} recup.`}
+                    : `${fs!.goals}/${fs!.shots} goles · ${fs!.turnovers} pérd. · ${fs!.recoveries} recup.`}
                 </p>
               </div>
             </Link>

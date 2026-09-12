@@ -88,7 +88,6 @@ export function PlayerProfile() {
                 <StatCard label="% Penaltis" value={`${fieldStats.penaltyScorePct}%`} />
               </>
             )}
-            <StatCard label="Asist." value={fieldStats.assists} />
             <StatCard label="Pérdidas" value={fieldStats.turnovers} />
             <StatCard label="Recup." value={fieldStats.recoveries} />
             <StatCard label="Pasos" value={fieldStats.steps} />

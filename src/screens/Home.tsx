@@ -10,12 +10,11 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
 
-type SortKey = 'goals' | 'assists' | 'turnovers' | 'recoveries' | 'exclusions';
+type SortKey = 'goals' | 'turnovers' | 'recoveries' | 'exclusions';
 type GkSortKey = 'saves' | 'goalsConceded' | 'savePct';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'goals', label: 'Goles' },
-  { value: 'assists', label: 'Asist.' },
   { value: 'turnovers', label: 'Pérdidas' },
   { value: 'recoveries', label: 'Recup.' },
   { value: 'exclusions', label: 'Exclus.' },
@@ -127,7 +126,7 @@ export function Home() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold text-white">{player.name}</p>
                 <p className="truncate text-xs text-slate-400">
-                  {stats.assists} asist. · {stats.turnovers} pérd. · {stats.recoveries} recup. · {stats.exclusions} exclus.
+                  {stats.turnovers} pérd. · {stats.recoveries} recup. · {stats.exclusions} exclus.
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-center">
