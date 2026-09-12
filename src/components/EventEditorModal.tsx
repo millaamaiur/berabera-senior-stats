@@ -60,13 +60,16 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
     }
   }
 
-  async function handleZoneClick(zone: Zone) {
+  async function handleZoneClick(zone: Zone | null) {
     if (target.kind !== 'single' || !draftResult) return;
     const event = target.event;
     if (event.eventType === 'shot') {
-      await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'goal' | 'miss', zone } });
+      await onUpdateEvent({
+        ...event,
+        eventData: { ...event.eventData, result: draftResult as 'goal' | 'miss', zone: zone ?? undefined },
+      });
       onClose();
-    } else if (event.eventType === 'gk_shot') {
+    } else if (event.eventType === 'gk_shot' && zone !== null) {
       await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'save' | 'goal', zone } });
       onClose();
     }
@@ -122,7 +125,7 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
                   ))}
                 </div>
                 <p className="text-sm font-semibold text-slate-300">Zona (toca para guardar)</p>
-                <ShotGrid3x3 onSelectZone={handleZoneClick} />
+                <ShotGrid3x3 onSelectZone={handleZoneClick} allowOutside={target.event.eventType === 'shot'} />
               </div>
             )}
 

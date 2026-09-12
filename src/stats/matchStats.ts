@@ -189,6 +189,7 @@ export function computeZoneStats(events: MatchEvent[], playerId: string, kind: '
   const zones: ZoneStat[] = Array.from({ length: 9 }, (_, i) => ({ zone: (i + 1) as Zone, shots: 0, goals: 0 }));
   for (const e of events) {
     if (e.playerId !== playerId || e.eventType !== kind) continue;
+    if (e.eventData.zone === undefined) continue; // "fuera" — missed the frame, no in-goal placement to bucket
     const zone = zones[e.eventData.zone - 1];
     zone.shots++;
     if (e.eventData.result === 'goal') zone.goals++;

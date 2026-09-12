@@ -60,7 +60,8 @@ export type Zone = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export interface FieldShotEventData {
   result: 'goal' | 'miss';
-  zone: Zone;
+  /** Absent when the shot missed the goal frame entirely ("fuera"), so it has no in-goal placement. */
+  zone?: Zone;
   context: 'open_play' | 'penalty';
 }
 

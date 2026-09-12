@@ -55,11 +55,11 @@ export function ActionPanel({ player }: ActionPanelProps) {
     setStep({ ...step, result });
   }
 
-  async function chooseZone(zone: Zone) {
+  async function chooseZone(zone: Zone | null) {
     if (!step || step.kind !== 'shot' || !step.result) return;
     if (step.flow.kind === 'field') {
-      await recordShot(player.id, { result: step.result as 'goal' | 'miss', zone, context: step.flow.context });
-    } else {
+      await recordShot(player.id, { result: step.result as 'goal' | 'miss', zone: zone ?? undefined, context: step.flow.context });
+    } else if (zone !== null) {
       await recordGkShot(player.id, { result: step.result as 'save' | 'goal', zone, context: step.flow.context });
     }
     finishAndReset();
@@ -94,7 +94,7 @@ export function ActionPanel({ player }: ActionPanelProps) {
     return (
       <div className="flex flex-col items-center gap-3">
         <p className="text-lg font-semibold text-white">¿Zona de portería?</p>
-        <ShotGrid3x3 onSelectZone={chooseZone} />
+        <ShotGrid3x3 onSelectZone={chooseZone} allowOutside={step.flow.kind === 'field'} />
         <button type="button" onClick={() => setStep(null)} className="text-sm text-slate-400 underline">
           Cancelar
         </button>
