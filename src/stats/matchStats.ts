@@ -250,3 +250,135 @@ export function computeTeamMatchStats(events: MatchEvent[]): TeamMatchStats {
     savePct: gkShots.length ? Math.round((saves / gkShots.length) * 100) : 0,
   };
 }
+
+export interface ShootingLine {
+  /** Every attempt we know about — on target or wide. */
+  attempts: number;
+  goals: number;
+  shotPct: number;
+  openPlayGoals: number;
+  penaltiesTaken: number;
+  penaltiesScored: number;
+}
+
+export interface MatchComparison {
+  us: ShootingLine;
+  rival: ShootingLine;
+  ourShotsFaced: number;
+  ourSaves: number;
+  ourSavePct: number;
+  rivalShotsFaced: number;
+  rivalSaves: number;
+  rivalSavePct: number;
+}
+
+/**
+ * Best-effort two-team comparison from what the event log actually contains.
+ * We only ever record OUR discrete actions (shots, cards, turnovers...) — the
+ * rival team only shows up indirectly, through `gk_shot` (their shots against
+ * our keeper). That's enough to reconstruct their shooting/scoring line, but
+ * two approximations are unavoidable:
+ * - Their "attempts" only include shots that challenged our keeper (there's no
+ *   button for "rival shot wide", so a truly off-target rival attempt is
+ *   simply never logged at all).
+ * - Their "saves" (by our keeper's rival counterpart) are inferred as our own
+ *   on-target misses — i.e. `shot` events with a zone (not "Fuera") that
+ *   didn't go in — since only on-target attempts can be saved.
+ *
+ * "Open play" is also anything that ISN'T tagged `context: 'penalty'`, rather
+ * than requiring `context === 'open_play'` — matches recorded before the
+ * penalty-shot button existed have no `context` on their `shot` events at
+ * all, and every one of those was necessarily a regular attempt (there was
+ * no other kind to record), so treating "not a penalty" as "open play" keeps
+ * old matches' numbers correct instead of quietly dropping their goals.
+ */
+export function computeMatchComparison(events: MatchEvent[]): MatchComparison {
+  const ourShots = events.filter((e): e is Extract<MatchEvent, { eventType: 'shot' }> => e.eventType === 'shot');
+  const rivalShots = events.filter((e): e is Extract<MatchEvent, { eventType: 'gk_shot' }> => e.eventType === 'gk_shot');
+  const ourOnTarget = ourShots.filter((e) => e.eventData.zone !== undefined);
+
+  const us: ShootingLine = {
+    attempts: ourShots.length,
+    goals: ourShots.filter((e) => e.eventData.result === 'goal').length,
+    shotPct: 0,
+    openPlayGoals: ourShots.filter((e) => e.eventData.context !== 'penalty' && e.eventData.result === 'goal').length,
+    penaltiesTaken: ourShots.filter((e) => e.eventData.context === 'penalty').length,
+    penaltiesScored: ourShots.filter((e) => e.eventData.context === 'penalty' && e.eventData.result === 'goal').length,
+  };
+  us.shotPct = us.attempts ? Math.round((us.goals / us.attempts) * 100) : 0;
+
+  const rival: ShootingLine = {
+    attempts: rivalShots.length,
+    goals: rivalShots.filter((e) => e.eventData.result === 'goal').length,
+    shotPct: 0,
+    openPlayGoals: rivalShots.filter((e) => e.eventData.context !== 'penalty' && e.eventData.result === 'goal').length,
+    penaltiesTaken: rivalShots.filter((e) => e.eventData.context === 'penalty').length,
+    penaltiesScored: rivalShots.filter((e) => e.eventData.context === 'penalty' && e.eventData.result === 'goal').length,
+  };
+  rival.shotPct = rival.attempts ? Math.round((rival.goals / rival.attempts) * 100) : 0;
+
+  const ourShotsFaced = rivalShots.length;
+  const ourSaves = rivalShots.filter((e) => e.eventData.result === 'save').length;
+  const rivalShotsFaced = ourOnTarget.length;
+  const rivalSaves = ourOnTarget.filter((e) => e.eventData.result === 'miss').length;
+
+  return {
+    us,
+    rival,
+    ourShotsFaced,
+    ourSaves,
+    ourSavePct: ourShotsFaced ? Math.round((ourSaves / ourShotsFaced) * 100) : 0,
+    rivalShotsFaced,
+    rivalSaves,
+    rivalSavePct: rivalShotsFaced ? Math.round((rivalSaves / rivalShotsFaced) * 100) : 0,
+  };
+}
+
+export interface ScoreDiffPoint {
+  /** Match-clock seconds. */
+  t: number;
+  /** Goals for us minus goals for the rival, as it stood at this instant. */
+  diff: number;
+}
+
+/** A step function of the goal difference over time — "who was ahead, and by how much, at any point in the match." */
+export function computeScoreDiffTimeline(events: MatchEvent[], durationSeconds: number): ScoreDiffPoint[] {
+  const goals = events
+    .filter(
+      (e): e is Extract<MatchEvent, { eventType: 'shot' | 'gk_shot' }> =>
+        (e.eventType === 'shot' && e.eventData.result === 'goal') || (e.eventType === 'gk_shot' && e.eventData.result === 'goal')
+    )
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const points: ScoreDiffPoint[] = [{ t: 0, diff: 0 }];
+  let diff = 0;
+  for (const e of goals) {
+    points.push({ t: e.timestamp, diff });
+    diff += e.eventType === 'shot' ? 1 : -1;
+    points.push({ t: e.timestamp, diff });
+  }
+  points.push({ t: Math.max(durationSeconds, goals.at(-1)?.timestamp ?? 0), diff });
+  return points;
+}
+
+/** The same goal-difference-over-time story, sampled every `bucketSeconds` (default 5 min) instead of at every single goal — one bar per bucket, easier to read at a glance. */
+export function computeScoreDiffBuckets(
+  events: MatchEvent[],
+  durationSeconds: number,
+  bucketSeconds = 300
+): ScoreDiffPoint[] {
+  const timeline = computeScoreDiffTimeline(events, durationSeconds);
+  const numBuckets = Math.max(1, Math.ceil(durationSeconds / bucketSeconds));
+  const buckets: ScoreDiffPoint[] = [];
+  let idx = 0;
+  let currentDiff = 0;
+  for (let b = 0; b < numBuckets; b++) {
+    const bucketEnd = Math.min((b + 1) * bucketSeconds, durationSeconds);
+    while (idx < timeline.length && timeline[idx].t <= bucketEnd) {
+      currentDiff = timeline[idx].diff;
+      idx++;
+    }
+    buckets.push({ t: bucketEnd, diff: currentDiff });
+  }
+  return buckets;
+}

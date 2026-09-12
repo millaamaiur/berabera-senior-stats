@@ -35,7 +35,7 @@ export function Root() {
             'radial-gradient(60% 40% at 15% 0%, rgba(245,158,11,0.10), transparent), radial-gradient(50% 35% at 100% 20%, rgba(56,189,248,0.08), transparent)',
         }}
       />
-      <main className="order-1 flex-1 sm:order-2">
+      <main className="order-1 min-h-0 flex-1 sm:order-2">
         <PullToRefresh onRefresh={handleRefresh} disabled={isLiveScoring} className="h-full overflow-y-auto pb-24 sm:pb-0">
           {loaded ? (
             <Suspense fallback={<LoadingScreen />}>
