@@ -59,6 +59,7 @@ export function NavBar() {
   const lock = useAuthStore((s) => s.lock);
   const navigate = useNavigate();
   const pendingCount = useSyncStatus((s) => s.pendingCount);
+  const failedCount = useSyncStatus((s) => s.failedCount);
 
   return (
     <nav
@@ -73,6 +74,16 @@ export function NavBar() {
         <div className="hidden shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-amber-500/10 px-2 py-2 text-center ring-1 ring-amber-500/30 sm:flex">
           <span className="text-[0.65rem] font-bold text-amber-400">Sin conexión</span>
           <span className="text-[0.6rem] text-amber-300">{pendingCount} sin subir</span>
+        </div>
+      )}
+
+      {failedCount > 0 && (
+        <div
+          className="hidden shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-rose-500/10 px-2 py-2 text-center ring-1 ring-rose-500/30 sm:flex"
+          title="Estos cambios llegaron a intentarse pero el servidor los rechazó (por ejemplo, el partido ya no existe) — no se van a reintentar solos."
+        >
+          <span className="text-[0.65rem] font-bold text-rose-400">Error al subir</span>
+          <span className="text-[0.6rem] text-rose-300">{failedCount} sin guardar</span>
         </div>
       )}
 
@@ -97,6 +108,12 @@ export function NavBar() {
         {pendingCount > 0 && (
           <span className="flex shrink-0 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[0.6rem] font-black text-slate-900 sm:hidden">
             {pendingCount}
+          </span>
+        )}
+
+        {failedCount > 0 && (
+          <span className="flex shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[0.6rem] font-black text-white sm:hidden">
+            {failedCount}
           </span>
         )}
 

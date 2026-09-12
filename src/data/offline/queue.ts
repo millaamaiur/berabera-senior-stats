@@ -6,6 +6,7 @@ import type { Match, MatchEvent, Player, Season } from '../../domain/types';
 import { useSyncStatus } from '../../stores/useSyncStatus';
 
 const QUEUE_KEY = 'bbs:pendingQueue';
+const FAILED_KEY = 'bbs:failedQueue';
 
 type PendingOp =
   | { id: string; collection: 'players'; method: 'upsert'; payload: Player }
@@ -36,6 +37,39 @@ function writeQueue(queue: PendingOp[]): void {
   useSyncStatus.getState().setPendingCount(queue.length);
 }
 
+function readFailedQueue(): PendingOp[] {
+  try {
+    const raw = localStorage.getItem(FAILED_KEY);
+    return raw ? (JSON.parse(raw) as PendingOp[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFailedQueue(list: PendingOp[]): void {
+  try {
+    localStorage.setItem(FAILED_KEY, JSON.stringify(list));
+  } catch {
+    // storage unavailable — nothing more we can do locally.
+  }
+  useSyncStatus.getState().setFailedCount(list.length);
+}
+
+/**
+ * Tells apart "we're offline, try again later" from "the server definitively
+ * rejected this." A real Postgres/PostgREST rejection always carries an error
+ * `code` (e.g. a foreign-key violation because the match this event pointed
+ * at was deleted while the write sat in the queue); a request that never
+ * reached the server at all (no wifi) throws a plain fetch failure with no
+ * such code. Only the second case is worth retrying — retrying the first
+ * forever would just wait for a rejection that will never change.
+ */
+function isConnectivityError(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+  const code = (error as { code?: unknown } | null)?.code;
+  return !code;
+}
+
 function runOp(op: PendingOp): Promise<void> {
   switch (op.collection) {
     case 'players':
@@ -59,7 +93,13 @@ function enqueue(op: QueueableOp): void {
 
 let flushing = false;
 
-/** Replays the pending queue against Supabase, in order, stopping at the first failure (still offline). */
+/**
+ * Replays the pending queue against Supabase, in order. Stops at the first
+ * connectivity failure (still offline — leaves it at the front to retry
+ * later). A write the server actually rejects is set aside into a separate
+ * failed-queue instead, so one permanently-broken op can never block
+ * everything queued behind it.
+ */
 export async function flushQueue(): Promise<void> {
   if (flushing) return;
   flushing = true;
@@ -71,8 +111,11 @@ export async function flushQueue(): Promise<void> {
         await runOp(queue[0]);
         queue = queue.slice(1);
         writeQueue(queue);
-      } catch {
-        break;
+      } catch (error) {
+        if (isConnectivityError(error)) break;
+        writeFailedQueue([...readFailedQueue(), queue[0]]);
+        queue = queue.slice(1);
+        writeQueue(queue);
       }
     }
   } finally {
@@ -97,6 +140,7 @@ export function initOfflineSync(): void {
   if (started) return;
   started = true;
   useSyncStatus.getState().setPendingCount(readQueue().length);
+  useSyncStatus.getState().setFailedCount(readFailedQueue().length);
   window.addEventListener('online', () => void flushQueue());
   setInterval(() => void flushQueue(), 20_000);
   void flushQueue();
