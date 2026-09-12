@@ -81,6 +81,13 @@ interface BaseEvent {
   playerId: string;
   /** seconds elapsed in the match clock when the event happened */
   timestamp: number;
+  /**
+   * Real-world epoch ms when this event was recorded — used only to figure out
+   * "the last thing anotado" for Deshacer, since it must survive a page reload
+   * (unlike `timestamp`, which is match-clock time and can repeat/collide).
+   * Absent on events recorded before this field existed.
+   */
+  createdAt?: number;
 }
 
 export type MatchEvent =

@@ -29,13 +29,11 @@ export function AnotarSession() {
   const match = useLiveMatchStore((s) => s.match);
   const events = useLiveMatchStore((s) => s.events);
   const selectedPlayerId = useLiveMatchStore((s) => s.selectedPlayerId);
-  const undoStack = useLiveMatchStore((s) => s.undoStack);
   const loadMatch = useLiveMatchStore((s) => s.loadMatch);
   const clear = useLiveMatchStore((s) => s.clear);
   const selectPlayer = useLiveMatchStore((s) => s.selectPlayer);
   const startClock = useLiveMatchStore((s) => s.startClock);
   const pauseClock = useLiveMatchStore((s) => s.pauseClock);
-  const resetClock = useLiveMatchStore((s) => s.resetClock);
   const checkHalftime = useLiveMatchStore((s) => s.checkHalftime);
   const getElapsedSeconds = useLiveMatchStore((s) => s.getElapsedSeconds);
   const toggleCourt = useLiveMatchStore((s) => s.toggleCourt);
@@ -76,8 +74,8 @@ export function AnotarSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.clock.running]);
 
-  // Ready to show the halftime summary again next time (e.g. after a Reset)
-  // as soon as we're no longer sitting at a reached-but-not-yet-passed halftime.
+  // Ready to show the halftime summary again next time (e.g. after cancelling
+  // the match) as soon as we're no longer sitting at a reached-but-not-yet-passed halftime.
   useEffect(() => {
     if (!match?.clock.halftimeReached) setDismissedHalftimeStats(false);
   }, [match?.clock.halftimeReached]);
@@ -98,7 +96,7 @@ export function AnotarSession() {
   const selectedPlayer = onCourtPlayers.find((p) => p.id === selectedPlayerId) ?? null;
 
   // Once the match clock has been started for the first time we never go back
-  // to the lineup picker — even after a pause/reset — substitutions take over.
+  // to the lineup picker — even after a pause — substitutions take over.
   const lineupDone = match.clock.hasStartedOnce;
   const lineupComplete =
     onCourtPlayers.filter((p) => p.position === 'player').length === 6 &&
@@ -116,12 +114,6 @@ export function AnotarSession() {
   const showHalftimeScreen = showSecondHalfPrompt && !dismissedHalftimeStats;
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
-
-  async function handleReset() {
-    if (await ask({ title: 'Reiniciar el cronómetro', message: 'Volverá a 00:00.' })) {
-      await resetClock();
-    }
-  }
 
   async function handleFinish() {
     if (!match) return;
@@ -238,9 +230,6 @@ export function AnotarSession() {
               {showSecondHalfPrompt ? 'Iniciar segunda parte' : 'Iniciar'}
             </button>
           )}
-          <button type="button" onClick={handleReset} className={btnClass('slate')}>
-            Reset
-          </button>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setShowSquad(true)} className={btnClass('slate')}>
@@ -249,10 +238,10 @@ export function AnotarSession() {
           <button
             type="button"
             onClick={() => undo()}
-            disabled={undoStack.length === 0}
+            disabled={events.length === 0}
             className={[
               'rounded-lg px-4 py-3 font-bold touch-manipulation',
-              undoStack.length === 0 ? 'bg-slate-800 text-slate-500' : 'bg-rose-600 text-white',
+              events.length === 0 ? 'bg-slate-800 text-slate-500' : 'bg-rose-600 text-white',
             ].join(' ')}
           >
             Deshacer

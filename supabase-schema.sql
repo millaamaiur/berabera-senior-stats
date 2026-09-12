@@ -35,7 +35,8 @@ create table events (
   "playerId" text not null,
   timestamp integer not null,
   "eventType" text not null,
-  "eventData" jsonb
+  "eventData" jsonb,
+  "createdAt" bigint
 );
 
 -- Cualquiera puede leer (ver estadísticas); solo una sesión con el PIN

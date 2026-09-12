@@ -1,4 +1,4 @@
-const LABELS = ['Lanzamiento', 'Pérdida', 'Pasos', 'Asistencia', 'Amarilla', 'Roja', 'Azul', '2 minutos'];
+const LABELS = ['Lanzamiento', 'Penalti', 'Pérdida', 'Recuperación', 'Pasos', 'Asistencia', 'Amonestación'];
 
 /** Shown instead of the real action panel while no player is selected — same
  * shape as the real thing, just greyed out, so the screen never looks empty. */

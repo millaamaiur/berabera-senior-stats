@@ -21,7 +21,6 @@ interface LiveMatchState {
   match: Match | null;
   events: MatchEvent[];
   selectedPlayerId: string | null;
-  undoStack: string[];
   loading: boolean;
 
   loadMatch: (matchId: string) => Promise<void>;
@@ -30,7 +29,6 @@ interface LiveMatchState {
 
   startClock: () => Promise<void>;
   pauseClock: () => Promise<void>;
-  resetClock: () => Promise<void>;
   checkHalftime: () => Promise<void>;
   getElapsedSeconds: () => number;
   updateCalledPlayers: (calledPlayerIds: string[]) => Promise<void>;
@@ -50,6 +48,7 @@ interface LiveMatchState {
   recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
   recordGkShot: (playerId: string, eventData: GkShotEventData) => Promise<void>;
+  /** Removes the most recently recorded event for this match — works even right after a page reload. */
   undo: () => Promise<void>;
   updateEvent: (event: MatchEvent) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
@@ -70,7 +69,6 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
   match: null,
   events: [],
   selectedPlayerId: null,
-  undoStack: [],
   loading: false,
 
   loadMatch: async (matchId: string) => {
@@ -96,11 +94,11 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     }
     const wasScheduled = match.status === 'scheduled';
     if (wasScheduled) match = { ...match, status: 'live' };
-    set({ match, events, selectedPlayerId: null, undoStack: [], loading: false });
+    set({ match, events, selectedPlayerId: null, loading: false });
     if (wasScheduled) await persistMatch(match);
   },
 
-  clear: () => set({ match: null, events: [], selectedPlayerId: null, undoStack: [] }),
+  clear: () => set({ match: null, events: [], selectedPlayerId: null }),
 
   selectPlayer: (playerId) => set({ selectedPlayerId: playerId }),
 
@@ -137,24 +135,6 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const updated: Match = {
       ...match,
       clock: { ...match.clock, elapsedSeconds, running: false, lastStartedAt: null },
-    };
-    set({ match: updated });
-    await persistMatch(updated);
-  },
-
-  resetClock: async () => {
-    const { match } = get();
-    if (!match) return;
-    const updated: Match = {
-      ...match,
-      clock: {
-        elapsedSeconds: 0,
-        running: false,
-        lastStartedAt: null,
-        hasStartedOnce: match.clock.hasStartedOnce,
-        halftimeReached: false,
-        secondHalfStarted: false,
-      },
     };
     set({ match: updated });
     await persistMatch(updated);
@@ -219,6 +199,12 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const { match, events, getElapsedSeconds } = get();
     if (!match) return [];
     const timestamp = Math.floor(getElapsedSeconds());
+    // Base + running offset keeps every event in this batch individually
+    // orderable by createdAt, in the same order they're pushed below — so
+    // Deshacer, which undoes "whatever has the latest createdAt", peels a
+    // multi-swap back off one leg at a time in the right order.
+    const batchStart = Date.now();
+    let nextCreatedAt = 0;
 
     const newEvents: MatchEvent[] = outIds.map(
       (id) =>
@@ -227,6 +213,7 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
           matchId: match.id,
           playerId: id,
           timestamp,
+          createdAt: batchStart + nextCreatedAt++,
           eventType: 'court_change',
           eventData: { action: 'exit' },
         }) as MatchEvent
@@ -255,16 +242,14 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
         matchId: match.id,
         playerId: id,
         timestamp,
+        createdAt: batchStart + nextCreatedAt++,
         eventType: 'court_change',
         eventData: { action: 'enter' },
       } as MatchEvent);
     }
 
-    const { events: currentEvents, undoStack } = get();
-    set({
-      events: [...currentEvents, ...newEvents],
-      undoStack: [...undoStack, ...newEvents.map((e) => e.id)],
-    });
+    const { events: currentEvents } = get();
+    set({ events: [...currentEvents, ...newEvents] });
     for (const event of newEvents) {
       await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
     }
@@ -290,14 +275,11 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
   },
 
   undo: async () => {
-    const { undoStack, events } = get();
-    const lastId = undoStack[undoStack.length - 1];
-    if (!lastId) return;
-    set({
-      events: events.filter((e) => e.id !== lastId),
-      undoStack: undoStack.slice(0, -1),
-    });
-    await writeOrQueue({ collection: 'events', method: 'delete', payload: lastId }, () => dataProvider.events.delete(lastId));
+    const { events } = get();
+    if (events.length === 0) return;
+    const last = [...events].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
+    set({ events: events.filter((e) => e.id !== last.id) });
+    await writeOrQueue({ collection: 'events', method: 'delete', payload: last.id }, () => dataProvider.events.delete(last.id));
   },
 
   updateEvent: async (event: MatchEvent) => {
@@ -307,8 +289,8 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
   },
 
   deleteEvent: async (id: string) => {
-    const { events, undoStack } = get();
-    set({ events: events.filter((e) => e.id !== id), undoStack: undoStack.filter((eid) => eid !== id) });
+    const { events } = get();
+    set({ events: events.filter((e) => e.id !== id) });
     await writeOrQueue({ collection: 'events', method: 'delete', payload: id }, () => dataProvider.events.delete(id));
   },
 
@@ -331,11 +313,12 @@ async function pushEvent(
     matchId: match.id,
     playerId,
     timestamp: Math.floor(elapsed),
+    createdAt: Date.now(),
     eventType,
     eventData,
   } as MatchEvent;
 
-  const { events, undoStack } = get();
-  set({ events: [...events, event], undoStack: [...undoStack, event.id] });
+  const { events } = get();
+  set({ events: [...events, event] });
   await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
 }
