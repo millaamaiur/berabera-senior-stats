@@ -1,25 +1,67 @@
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppData } from '../stores/useAppData';
+import { useAppData, activeSeason } from '../stores/useAppData';
+import { computeFieldPlayerStats, computeGoalkeeperStats } from '../stats/matchStats';
 import { createPlayer, suggestPlayerNumber, toggleActive, validatePlayerNumber } from '../stores/playerActions';
-import { numberRangeFor, type Position } from '../domain/types';
+import { numberRangeFor, type Player, type Position } from '../domain/types';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Badge } from '../components/Badge';
 import { SegmentedControl } from '../components/SegmentedControl';
+import { PlayerAvatar } from '../components/PlayerAvatar';
 
 const inputClass = 'mt-1 rounded-xl bg-white/5 px-3 py-2.5 text-white ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-amber-400';
 
+type SortKey = 'goals' | 'turnovers' | 'recoveries' | 'exclusions';
+type GkSortKey = 'saves' | 'goalsConceded' | 'savePct';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'goals', label: 'Goles' },
+  { value: 'turnovers', label: 'Pérdidas' },
+  { value: 'recoveries', label: 'Recup.' },
+  { value: 'exclusions', label: 'Exclus.' },
+];
+
+const GK_SORT_OPTIONS: { value: GkSortKey; label: string }[] = [
+  { value: 'saves', label: 'Paradas' },
+  { value: 'goalsConceded', label: 'Goles recib.' },
+  { value: 'savePct', label: '% Paradas' },
+];
+
 export function Players() {
   const players = useAppData((s) => s.players);
+  const matches = useAppData((s) => s.matches);
+  const events = useAppData((s) => s.events);
+  const seasons = useAppData((s) => s.seasons);
   const unlocked = useAuthStore((s) => s.unlocked);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [position, setPosition] = useState<Position>('player');
   const [number, setNumber] = useState<number>(4);
   const [error, setError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('goals');
+  const [gkSortKey, setGkSortKey] = useState<GkSortKey>('saves');
 
-  const fieldPlayers = players.filter((p) => p.position === 'player').sort((a, b) => a.number - b.number);
-  const goalkeepers = players.filter((p) => p.position === 'goalkeeper').sort((a, b) => a.number - b.number);
+  const season = activeSeason(seasons);
+  const seasonMatches = useMemo(
+    () => (season ? matches.filter((m) => m.seasonId === season.id) : matches),
+    [matches, season]
+  );
+  const seasonMatchIds = useMemo(() => new Set(seasonMatches.map((m) => m.id)), [seasonMatches]);
+  const seasonEvents = useMemo(() => events.filter((e) => seasonMatchIds.has(e.matchId)), [events, seasonMatchIds]);
+
+  const rows = useMemo(() => {
+    return players
+      .filter((p) => p.position === 'player')
+      .map((p) => ({ player: p, stats: computeFieldPlayerStats(seasonEvents, p.id) }))
+      .sort((a, b) => b.stats[sortKey] - a.stats[sortKey]);
+  }, [players, seasonEvents, sortKey]);
+
+  const gkRows = useMemo(() => {
+    return players
+      .filter((p) => p.position === 'goalkeeper')
+      .map((p) => ({ player: p, stats: computeGoalkeeperStats(seasonEvents, p.id) }))
+      .sort((a, b) => b.stats[gkSortKey] - a.stats[gkSortKey]);
+  }, [players, seasonEvents, gkSortKey]);
 
   function applySuggestedNumber(forPosition: Position) {
     const suggestion = suggestPlayerNumber(forPosition, players);
@@ -53,9 +95,9 @@ export function Players() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
+    <div className="flex flex-col gap-7 p-4 pt-6 sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-extrabold tracking-tight text-white">Jugadores de campo</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight text-white">Jugadores</h2>
         {unlocked && (
           <button
             type="button"
@@ -113,45 +155,96 @@ export function Players() {
         </div>
       )}
 
-      <PlayerList players={fieldPlayers} canEdit={unlocked} />
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-white">Jugadores de campo</h2>
+          <SegmentedControl value={sortKey} options={SORT_OPTIONS} onChange={setSortKey} />
+        </div>
+        <div className="flex flex-col gap-2">
+          {rows.map(({ player, stats }) => (
+            <PlayerRow
+              key={player.id}
+              player={player}
+              unlocked={unlocked}
+              statLine={
+                <>
+                  {stats.turnovers} pérd. · {stats.recoveries} recup. · {stats.exclusions} exclus.
+                </>
+              }
+              statValue={stats[sortKey]}
+              statLabel={SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? ''}
+            />
+          ))}
+          {rows.length === 0 && <p className="p-2 text-slate-400">No hay jugadores de campo.</p>}
+        </div>
+      </section>
 
-      <h2 className="text-2xl font-extrabold tracking-tight text-white">Porteros</h2>
-      <PlayerList players={goalkeepers} canEdit={unlocked} />
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-white">Porteros</h2>
+          <SegmentedControl value={gkSortKey} options={GK_SORT_OPTIONS} onChange={setGkSortKey} />
+        </div>
+        <div className="flex flex-col gap-2">
+          {gkRows.map(({ player, stats }) => (
+            <PlayerRow
+              key={player.id}
+              player={player}
+              unlocked={unlocked}
+              statLine={
+                <>
+                  {stats.shotsFaced} lanz. recib. · {stats.saves} paradas · {stats.goalsConceded} goles recib.
+                </>
+              }
+              statValue={gkSortKey === 'savePct' ? `${stats[gkSortKey]}%` : stats[gkSortKey]}
+              statLabel={GK_SORT_OPTIONS.find((o) => o.value === gkSortKey)?.label ?? ''}
+            />
+          ))}
+          {gkRows.length === 0 && <p className="p-2 text-slate-400">No hay porteros en la plantilla.</p>}
+        </div>
+      </section>
     </div>
   );
 }
 
-function PlayerList({
-  players,
-  canEdit,
+function PlayerRow({
+  player,
+  unlocked,
+  statLine,
+  statValue,
+  statLabel,
 }: {
-  players: ReturnType<typeof useAppData.getState>['players'];
-  canEdit: boolean;
+  player: Player;
+  unlocked: boolean;
+  statLine: ReactNode;
+  statValue: number | string;
+  statLabel: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      {players.map((player) => (
-        <div
-          key={player.id}
-          className={[
-            'flex items-center justify-between rounded-2xl bg-white/5 p-3 ring-1 ring-white/10',
-            player.active ? '' : 'opacity-50',
-          ].join(' ')}
-        >
-          <Link to={`/jugadores/${player.id}`} className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold text-white">
-              {player.number}
-            </span>
-            <span className="font-bold text-white">{player.name}</span>
-          </Link>
-          {canEdit && (
-            <button type="button" onClick={() => toggleActive(player)} className="touch-manipulation">
-              <Badge color={player.active ? 'emerald' : 'slate'}>{player.active ? 'Activo' : 'Inactivo'}</Badge>
-            </button>
-          )}
+    <div
+      className={[
+        'flex items-center gap-3 rounded-2xl bg-white/5 p-2.5 ring-1 ring-white/10',
+        player.active ? '' : 'opacity-50',
+      ].join(' ')}
+    >
+      <Link
+        to={`/jugadores/${player.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 transition-transform touch-manipulation active:scale-[0.98]"
+      >
+        <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-white">{player.name}</p>
+          <p className="truncate text-xs text-slate-400">{statLine}</p>
         </div>
-      ))}
-      {players.length === 0 && <p className="p-2 text-slate-400">Sin jugadores.</p>}
+        <div className="flex shrink-0 flex-col items-center">
+          <p className="text-xl font-extrabold text-amber-400">{statValue}</p>
+          <p className="text-[0.6rem] uppercase tracking-wide text-slate-500">{statLabel}</p>
+        </div>
+      </Link>
+      {unlocked && (
+        <button type="button" onClick={() => toggleActive(player)} className="shrink-0 touch-manipulation">
+          <Badge color={player.active ? 'emerald' : 'slate'}>{player.active ? 'Activo' : 'Inactivo'}</Badge>
+        </button>
+      )}
     </div>
   );
 }

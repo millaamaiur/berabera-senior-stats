@@ -27,7 +27,7 @@ export function EditMatchDateModal({ match, allMatches, onSave, onClose }: EditM
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
-      <div className="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-slate-900/95 p-4 shadow-2xl ring-1 ring-white/10">
+      <div className="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-panel/95 p-4 shadow-2xl ring-1 ring-white/10">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">Editar fecha del partido</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400" aria-label="Cerrar">

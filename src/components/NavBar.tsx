@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useSyncStatus } from '../stores/useSyncStatus';
 import { useLiveMatchStore } from '../stores/useLiveMatchStore';
 import { useToast } from '../stores/useToast';
+import { useTheme } from '../stores/useTheme';
 
 const ICON_PROPS = {
   viewBox: '0 0 24 24',
@@ -34,6 +35,34 @@ function CalendarIcon() {
   );
 }
 
+function PlayersIcon() {
+  return (
+    <svg {...ICON_PROPS} className="h-6 w-6">
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+      <circle cx="17" cy="8.5" r="2.5" />
+      <path d="M15.3 13.1A5 5 0 0 1 20.5 20" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg {...ICON_PROPS} className="h-5 w-5">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg {...ICON_PROPS} className="h-5 w-5">
+      <path d="M20.5 14.7A8.5 8.5 0 1 1 9.3 3.5a7 7 0 0 0 11.2 11.2Z" />
+    </svg>
+  );
+}
+
 function UnlockIcon() {
   return (
     <svg {...ICON_PROPS} className="h-5 w-5">
@@ -55,6 +84,7 @@ function LockIcon() {
 const TABS: { to: string; label: string; end?: boolean; icon: () => ReactNode }[] = [
   { to: '/', label: 'Inicio', end: true, icon: HomeIcon },
   { to: '/partidos', label: 'Partidos', icon: CalendarIcon },
+  { to: '/jugadores', label: 'Jugadores', icon: PlayersIcon },
 ];
 
 export function NavBar() {
@@ -63,6 +93,8 @@ export function NavBar() {
   const navigate = useNavigate();
   const pendingCount = useSyncStatus((s) => s.pendingCount);
   const failedCount = useSyncStatus((s) => s.failedCount);
+  const theme = useTheme((s) => s.theme);
+  const toggleTheme = useTheme((s) => s.toggle);
   // Only the clock actually running blocks navigation — paused (including at
   // halftime, where the coach may well want to check Inicio/Partidos) leaves it open.
   const matchRunning = useLiveMatchStore((s) => s.match?.clock.running ?? false);
@@ -75,7 +107,7 @@ export function NavBar() {
 
   return (
     <nav
-      className="fixed inset-x-3 bottom-3 z-30 flex items-center gap-1 rounded-3xl bg-slate-900/85 p-1.5 shadow-2xl shadow-black/50 ring-1 ring-white/10 backdrop-blur-xl sm:static sm:order-1 sm:inset-auto sm:w-24 sm:flex-col sm:gap-2 sm:rounded-none sm:bg-slate-950/60 sm:p-3 sm:pt-6 sm:shadow-none sm:ring-0 sm:ring-white/5 sm:[border-inline-end:1px_solid_rgba(255,255,255,0.08)]"
+      className="fixed inset-x-3 bottom-3 z-30 flex items-center gap-1 rounded-3xl bg-panel/85 p-1.5 shadow-2xl shadow-black/50 ring-1 ring-white/10 backdrop-blur-xl sm:static sm:order-1 sm:inset-auto sm:w-24 sm:flex-col sm:gap-2 sm:rounded-none sm:bg-panel/60 sm:p-3 sm:pt-6 sm:shadow-none sm:ring-0 sm:ring-white/5 sm:[border-inline-end:1px_solid_rgba(255,255,255,0.08)]"
       style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}
     >
       <div className="hidden shrink-0 items-center justify-center pb-2 sm:flex">
@@ -130,6 +162,15 @@ export function NavBar() {
             {failedCount}
           </span>
         )}
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          className="flex shrink-0 items-center justify-center rounded-2xl p-2.5 text-slate-400 touch-manipulation active:bg-white/5 sm:p-3"
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
 
         {unlocked ? (
           <button

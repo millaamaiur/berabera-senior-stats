@@ -11,7 +11,7 @@ export function ToastHost() {
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 sm:inset-x-auto sm:left-24 sm:right-6 sm:bottom-6">
       <div
         key={toastId}
-        className="animate-toast-in rounded-full bg-slate-900/95 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-xl"
+        className="animate-toast-in rounded-full bg-panel/95 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-xl"
       >
         {message}
       </div>

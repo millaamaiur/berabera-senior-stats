@@ -1,8 +1,47 @@
 @import "tailwindcss";
 
+/* A few backgrounds (panel/app) live outside Tailwind's own color scale, so they get their own tokens here. */
+@theme {
+  --color-panel: #10131c;
+}
+
 :root {
   color-scheme: dark;
   touch-action: manipulation;
+  --app-bg: #06070c;
+  --line-soft-1: rgba(255, 255, 255, 0.15);
+  --line-soft-2: rgba(255, 255, 255, 0.2);
+}
+
+/*
+ * Light mode re-points Tailwind's own color tokens (white, slate, and the
+ * accent -300/-400 shades) instead of adding `dark:`/light: variants to every
+ * className in the app. This works because those shades are used consistently
+ * for one meaning each: white/slate-300..600 as "ink on a neutral surface",
+ * and accent-300/400 as "accent text on a neutral surface" — never as a fixed
+ * color against another fixed color. The one spot where a color really must
+ * stay literal (an on-court chip that's always a white pill, regardless of
+ * theme) uses an arbitrary `bg-[#fff]` instead, precisely to opt out of this.
+ */
+:root.light {
+  color-scheme: light;
+  --app-bg: #f2f3f8;
+  --color-white: #0f172a;
+  --color-slate-300: #334155;
+  --color-slate-400: #475569;
+  --color-slate-500: #52525b;
+  --color-slate-600: #94a3b8;
+  --color-amber-300: #92400e;
+  --color-amber-400: #b45309;
+  --color-emerald-300: #065f46;
+  --color-emerald-400: #047857;
+  --color-rose-300: #9f1239;
+  --color-rose-400: #be123c;
+  --color-sky-300: #075985;
+  --color-sky-400: #0369a1;
+  --color-panel: #ffffff;
+  --line-soft-1: rgba(15, 23, 42, 0.15);
+  --line-soft-2: rgba(15, 23, 42, 0.2);
 }
 
 html, body, #root {
@@ -14,12 +53,16 @@ html, body, #root {
 }
 
 body {
-  background-color: #06070c;
+  background-color: var(--app-bg);
 }
 
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+:root.light * {
+  scrollbar-color: rgba(15, 23, 42, 0.2) transparent;
 }
 
 @keyframes toast-in {

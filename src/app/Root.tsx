@@ -27,7 +27,7 @@ export function Root() {
   }, [reload]);
 
   return (
-    <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-[#06070c] text-white sm:flex-row">
+    <div className="relative flex h-dvh w-dvw flex-col overflow-hidden bg-[var(--app-bg)] text-white sm:flex-row">
       <div
         className="pointer-events-none fixed inset-0 -z-10 opacity-60"
         style={{

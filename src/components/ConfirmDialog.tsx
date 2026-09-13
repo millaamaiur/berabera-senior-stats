@@ -26,7 +26,7 @@ export function ConfirmDialog({
       onClick={onCancel}
     >
       <div
-        className="animate-sheet-up flex w-full max-w-sm flex-col gap-4 rounded-t-3xl bg-slate-900/95 p-5 shadow-2xl ring-1 ring-white/10 sm:rounded-3xl"
+        className="animate-sheet-up flex w-full max-w-sm flex-col gap-4 rounded-t-3xl bg-panel/95 p-5 shadow-2xl ring-1 ring-white/10 sm:rounded-3xl"
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
         onClick={(e) => e.stopPropagation()}
       >

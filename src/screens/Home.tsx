@@ -1,46 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData, activeSeason } from '../stores/useAppData';
-import {
-  computeFieldPlayerStats,
-  computeGoalkeeperStats,
-  computeMatchScore,
-  computeTeamSeasonStats,
-  matchOutcome,
-} from '../stats/matchStats';
+import { computeMatchScore, computeTeamSeasonStats, matchOutcome } from '../stats/matchStats';
 import { ClubLogo } from '../components/ClubLogo';
-import { PlayerAvatar } from '../components/PlayerAvatar';
 import { StatCard } from '../components/StatCard';
-import { SegmentedControl } from '../components/SegmentedControl';
 import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
 import { daysUntil, formatDate, scheduleLabel } from '../utils/time';
 
-type SortKey = 'goals' | 'turnovers' | 'recoveries' | 'exclusions';
-type GkSortKey = 'saves' | 'goalsConceded' | 'savePct';
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'goals', label: 'Goles' },
-  { value: 'turnovers', label: 'Pérdidas' },
-  { value: 'recoveries', label: 'Recup.' },
-  { value: 'exclusions', label: 'Exclus.' },
-];
-
-const GK_SORT_OPTIONS: { value: GkSortKey; label: string }[] = [
-  { value: 'saves', label: 'Paradas' },
-  { value: 'goalsConceded', label: 'Goles recib.' },
-  { value: 'savePct', label: '% Paradas' },
-];
-
 export function Home() {
-  const players = useAppData((s) => s.players);
   const matches = useAppData((s) => s.matches);
   const events = useAppData((s) => s.events);
   const seasons = useAppData((s) => s.seasons);
-  const [sortKey, setSortKey] = useState<SortKey>('goals');
-  const [gkSortKey, setGkSortKey] = useState<GkSortKey>('saves');
   const { ask, dialog } = useConfirmDialog();
   const unlocked = useAuthStore((s) => s.unlocked);
 
@@ -72,20 +45,6 @@ export function Home() {
       .filter((m) => m.status !== 'finished' && !m.clock.hasStartedOnce && daysUntil(m.date) >= 0)
       .sort((a, b) => a.date.localeCompare(b.date))[0];
   }, [matches]);
-
-  const rows = useMemo(() => {
-    return players
-      .filter((p) => p.position === 'player')
-      .map((p) => ({ player: p, stats: computeFieldPlayerStats(seasonEvents, p.id) }))
-      .sort((a, b) => b.stats[sortKey] - a.stats[sortKey]);
-  }, [players, seasonEvents, sortKey]);
-
-  const gkRows = useMemo(() => {
-    return players
-      .filter((p) => p.position === 'goalkeeper')
-      .map((p) => ({ player: p, stats: computeGoalkeeperStats(seasonEvents, p.id) }))
-      .sort((a, b) => b.stats[gkSortKey] - a.stats[gkSortKey]);
-  }, [players, seasonEvents, gkSortKey]);
 
   async function handleCloseSeason() {
     const firstConfirm = await ask({
@@ -170,70 +129,6 @@ export function Home() {
             </div>
           </div>
         )}
-      </section>
-
-      <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-white">Jugadores</h2>
-          <SegmentedControl value={sortKey} options={SORT_OPTIONS} onChange={setSortKey} />
-        </div>
-        <div className="flex flex-col gap-2">
-          {rows.map(({ player, stats }) => (
-            <Link
-              key={player.id}
-              to={`/jugadores/${player.id}`}
-              className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5 ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]"
-            >
-              <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-bold text-white">{player.name}</p>
-                <p className="truncate text-xs text-slate-400">
-                  {stats.turnovers} pérd. · {stats.recoveries} recup. · {stats.exclusions} exclus.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col items-center">
-                <p className="text-xl font-extrabold text-amber-400">{stats[sortKey]}</p>
-                <p className="text-[0.6rem] uppercase tracking-wide text-slate-500">
-                  {SORT_OPTIONS.find((o) => o.value === sortKey)?.label}
-                </p>
-              </div>
-            </Link>
-          ))}
-          {rows.length === 0 && <p className="p-2 text-slate-400">No hay jugadores de campo.</p>}
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-white">Porteros</h2>
-          <SegmentedControl value={gkSortKey} options={GK_SORT_OPTIONS} onChange={setGkSortKey} />
-        </div>
-        <div className="flex flex-col gap-2">
-          {gkRows.map(({ player, stats }) => (
-            <Link
-              key={player.id}
-              to={`/jugadores/${player.id}`}
-              className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5 ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]"
-            >
-              <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-bold text-white">{player.name}</p>
-                <p className="truncate text-xs text-slate-400">
-                  {stats.shotsFaced} lanz. recib. · {stats.saves} paradas · {stats.goalsConceded} goles recib.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col items-center">
-                <p className="text-xl font-extrabold text-amber-400">
-                  {gkSortKey === 'savePct' ? `${stats[gkSortKey]}%` : stats[gkSortKey]}
-                </p>
-                <p className="text-[0.6rem] uppercase tracking-wide text-slate-500">
-                  {GK_SORT_OPTIONS.find((o) => o.value === gkSortKey)?.label}
-                </p>
-              </div>
-            </Link>
-          ))}
-          {gkRows.length === 0 && <p className="p-2 text-slate-400">No hay porteros en la plantilla.</p>}
-        </div>
       </section>
 
       {dialog}

@@ -28,7 +28,7 @@ export function OnCourtRoster({ onCourtPlayers, selectedPlayerId, onSelectPlayer
                 ? 'scale-105 bg-amber-500 text-slate-900 ring-amber-400 shadow-amber-500/30'
                 : player.position === 'goalkeeper'
                   ? 'bg-sky-400/90 text-slate-900 ring-sky-500/40'
-                  : 'bg-white text-emerald-900 ring-emerald-700/30',
+                  : 'bg-[#fff] text-emerald-900 ring-emerald-700/30',
             ].join(' ')}
           >
             <span className="opacity-60">{player.number}</span>

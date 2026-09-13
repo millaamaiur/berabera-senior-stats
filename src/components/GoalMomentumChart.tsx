@@ -42,7 +42,7 @@ export function GoalMomentumChart({ events, durationSeconds }: GoalMomentumChart
             y1={0}
             x2={halftimeIndex * barWidth}
             y2={H}
-            stroke="rgba(255,255,255,0.15)"
+            style={{ stroke: 'var(--line-soft-1)' }}
             strokeDasharray="3 3"
           />
         )}
@@ -57,7 +57,7 @@ export function GoalMomentumChart({ events, durationSeconds }: GoalMomentumChart
             fill={b.diff > 0 ? '#f59e0b' : b.diff < 0 ? '#f43f5e' : 'transparent'}
           />
         ))}
-        <line x1={0} y1={MID} x2={W} y2={MID} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+        <line x1={0} y1={MID} x2={W} y2={MID} style={{ stroke: 'var(--line-soft-2)' }} strokeWidth={1} />
       </svg>
     </div>
   );

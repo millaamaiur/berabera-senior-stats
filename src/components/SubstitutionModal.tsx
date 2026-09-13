@@ -65,7 +65,7 @@ export function SubstitutionModal({ onCourtPlayers, benchPlayers, onConfirm, onC
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl bg-slate-900/95 p-4 shadow-2xl ring-1 ring-white/10">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-3xl bg-panel/95 p-4 shadow-2xl ring-1 ring-white/10">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">Hacer cambios</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400" aria-label="Cerrar">
