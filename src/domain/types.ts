@@ -45,6 +45,8 @@ export interface Match {
   clock: MatchClock;
   createdAt: number;
   seasonId: string;
+  /** Optional link to a recording/highlights of the match, added after the fact. */
+  link?: string | null;
 }
 
 export interface Season {

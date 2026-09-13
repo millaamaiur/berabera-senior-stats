@@ -26,7 +26,8 @@ create table matches (
   status text not null check (status in ('scheduled', 'live', 'finished')),
   clock jsonb not null,
   "createdAt" bigint not null,
-  "seasonId" text references seasons(id)
+  "seasonId" text references seasons(id),
+  link text
 );
 
 create table events (

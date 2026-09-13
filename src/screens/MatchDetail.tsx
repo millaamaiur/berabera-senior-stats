@@ -13,6 +13,7 @@ import { formatDate } from '../utils/time';
 import { MatchRosterTable } from '../components/MatchRosterTable';
 import { CompactTimeline } from '../components/CompactTimeline';
 import { EditSquadModal } from '../components/EditSquadModal';
+import { EditMatchLinkModal } from '../components/EditMatchLinkModal';
 import { StatCard } from '../components/StatCard';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { ComparisonBar, shareOf } from '../components/ComparisonBar';
@@ -24,6 +25,16 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 type Tab = 'roster' | 'stats';
 
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <path d="M9 15l6-6" />
+      <path d="M10 7l1-1a3.5 3.5 0 0 1 5 5l-1 1" />
+      <path d="M14 17l-1 1a3.5 3.5 0 0 1-5-5l1-1" />
+    </svg>
+  );
+}
+
 export function MatchDetail() {
   const { id } = useParams<{ id: string }>();
   const matches = useAppData((s) => s.matches);
@@ -31,6 +42,7 @@ export function MatchDetail() {
   const events = useAppData((s) => s.events);
   const [tab, setTab] = useState<Tab>('roster');
   const [showSquad, setShowSquad] = useState(false);
+  const [showEditLink, setShowEditLink] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventEditorTarget | null>(null);
   const unlocked = useAuthStore((s) => s.unlocked);
 
@@ -60,6 +72,12 @@ export function MatchDetail() {
     await writeOrQueue({ collection: 'matches', method: 'upsert', payload: updated }, () => dataProvider.matches.upsert(updated));
   }
 
+  async function handleSaveLink(link: string | null) {
+    const updated = { ...match!, link };
+    useAppData.setState((s) => ({ matches: s.matches.map((m) => (m.id === updated.id ? updated : m)) }));
+    await writeOrQueue({ collection: 'matches', method: 'upsert', payload: updated }, () => dataProvider.matches.upsert(updated));
+  }
+
   return (
     <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
       <div className="flex flex-col gap-4 rounded-3xl bg-white/5 p-4 ring-1 ring-white/10 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -74,6 +92,27 @@ export function MatchDetail() {
               {outcome === 'win' ? 'Victoria' : outcome === 'loss' ? 'Derrota' : 'Empate'}
             </span>
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {match.link && (
+              <a
+                href={match.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3.5 py-2 text-xs font-bold text-amber-400 transition-transform touch-manipulation active:scale-95"
+              >
+                <LinkIcon /> Ver enlace
+              </a>
+            )}
+            {unlocked && (
+              <button
+                type="button"
+                onClick={() => setShowEditLink(true)}
+                className="rounded-full bg-white/8 px-3.5 py-2 text-xs font-bold text-slate-200 transition-transform touch-manipulation active:scale-95"
+              >
+                {match.link ? 'Editar enlace' : '+ Añadir enlace'}
+              </button>
+            )}
+          </div>
         </div>
         <GoalMomentumChart events={matchEvents} durationSeconds={match.clock.elapsedSeconds} />
       </div>
@@ -219,6 +258,8 @@ export function MatchDetail() {
           onClose={() => setEditingEvent(null)}
         />
       )}
+
+      {showEditLink && <EditMatchLinkModal match={match} onSave={handleSaveLink} onClose={() => setShowEditLink(false)} />}
     </div>
   );
 }
