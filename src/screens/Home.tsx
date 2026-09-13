@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData, activeSeason } from '../stores/useAppData';
-import { computeFieldPlayerStats, computeGoalkeeperStats, computeTeamSeasonStats } from '../stats/matchStats';
+import {
+  computeFieldPlayerStats,
+  computeGoalkeeperStats,
+  computeMatchScore,
+  computeTeamSeasonStats,
+  matchOutcome,
+} from '../stats/matchStats';
 import { ClubLogo } from '../components/ClubLogo';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { StatCard } from '../components/StatCard';
@@ -48,6 +54,18 @@ export function Home() {
   const seasonEvents = useMemo(() => events.filter((e) => seasonMatchIds.has(e.matchId)), [events, seasonMatchIds]);
 
   const team = useMemo(() => computeTeamSeasonStats(seasonMatches, seasonEvents), [seasonMatches, seasonEvents]);
+
+  const recentForm = useMemo(() => {
+    return seasonMatches
+      .filter((m) => m.status === 'finished')
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-5)
+      .map((m) => {
+        const matchEvents = events.filter((e) => e.matchId === m.id);
+        const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
+        return { match: m, outcome: matchOutcome(goalsFor, goalsAgainst), goalsFor, goalsAgainst };
+      });
+  }, [seasonMatches, events]);
 
   const nextMatch = useMemo(() => {
     return [...matches]
@@ -132,6 +150,26 @@ export function Home() {
           <StatCard label="GC" value={team.goalsAgainst} />
           <StatCard label="Dif." value={team.goalDiff} />
         </div>
+        {recentForm.length > 0 && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Forma reciente</span>
+            <div className="flex gap-1.5">
+              {recentForm.map(({ match, outcome, goalsFor, goalsAgainst }) => (
+                <Link
+                  key={match.id}
+                  to={`/partidos/${match.id}`}
+                  title={`vs ${match.opponent} · ${goalsFor}-${goalsAgainst}`}
+                  className={[
+                    'flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold text-white transition-transform touch-manipulation active:scale-90',
+                    outcome === 'win' ? 'bg-emerald-500' : outcome === 'loss' ? 'bg-rose-500' : 'bg-slate-500',
+                  ].join(' ')}
+                >
+                  {outcome === 'win' ? 'V' : outcome === 'loss' ? 'D' : 'E'}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section>
