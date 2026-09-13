@@ -2,29 +2,23 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData, activeSeason } from '../stores/useAppData';
 import {
-  computeFieldPlayerStats,
-  computeGoalkeeperStats,
   computeMatchScore,
   computeTeamMatchStats,
   computeTeamSeasonStats,
   computeTeamZoneStats,
   matchOutcome,
 } from '../stats/matchStats';
-import { computeMinutesPlayed } from '../stats/onCourt';
-import type { Player } from '../domain/types';
 import { ClubLogo } from '../components/ClubLogo';
-import { PlayerAvatar } from '../components/PlayerAvatar';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
-import { daysUntil, formatClock, formatDate, scheduleLabel } from '../utils/time';
+import { daysUntil, formatDate, scheduleLabel } from '../utils/time';
 
 const OUTCOME_LABEL_PLURAL = { win: 'victorias', loss: 'derrotas', draw: 'empates' } as const;
 
 export function Home() {
-  const players = useAppData((s) => s.players);
   const matches = useAppData((s) => s.matches);
   const events = useAppData((s) => s.events);
   const seasons = useAppData((s) => s.seasons);
@@ -85,28 +79,6 @@ export function Home() {
   const concededZones = useMemo(() => computeTeamZoneStats(seasonEvents, 'gk_shot'), [seasonEvents]);
   const maxScoredShots = Math.max(1, ...scoredZones.map((z) => z.shots));
   const maxConcededShots = Math.max(1, ...concededZones.map((z) => z.shots));
-
-  const highlights = useMemo(() => {
-    let topScorer: { player: Player; value: number } | null = null;
-    let topKeeper: { player: Player; value: number } | null = null;
-    let mostMinutes: { player: Player; value: number } | null = null;
-
-    for (const p of players) {
-      if (p.position === 'player') {
-        const goals = computeFieldPlayerStats(seasonEvents, p.id).goals;
-        if (goals > 0 && (!topScorer || goals > topScorer.value)) topScorer = { player: p, value: goals };
-      } else {
-        const saves = computeGoalkeeperStats(seasonEvents, p.id).saves;
-        if (saves > 0 && (!topKeeper || saves > topKeeper.value)) topKeeper = { player: p, value: saves };
-      }
-      const minutes = seasonMatches.reduce((sum, m) => {
-        const matchEvents = events.filter((e) => e.matchId === m.id);
-        return sum + computeMinutesPlayed(matchEvents, p.id, m.clock.elapsedSeconds);
-      }, 0);
-      if (minutes > 0 && (!mostMinutes || minutes > mostMinutes.value)) mostMinutes = { player: p, value: minutes };
-    }
-    return { topScorer, topKeeper, mostMinutes };
-  }, [players, seasonEvents, seasonMatches, events]);
 
   const nextMatch = useMemo(() => {
     return [...matches]
@@ -259,35 +231,6 @@ export function Home() {
         </section>
       )}
 
-      {(highlights.topScorer || highlights.topKeeper || highlights.mostMinutes) && (
-        <section>
-          <h2 className="mb-3 text-lg font-bold text-white">Destacados de la temporada</h2>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {highlights.topScorer && (
-              <HighlightCard
-                player={highlights.topScorer.player}
-                label="Máximo goleador"
-                value={`${highlights.topScorer.value} goles`}
-              />
-            )}
-            {highlights.topKeeper && (
-              <HighlightCard
-                player={highlights.topKeeper.player}
-                label="Más paradas"
-                value={`${highlights.topKeeper.value} paradas`}
-              />
-            )}
-            {highlights.mostMinutes && (
-              <HighlightCard
-                player={highlights.mostMinutes.player}
-                label="Más minutos jugados"
-                value={formatClock(highlights.mostMinutes.value)}
-              />
-            )}
-          </div>
-        </section>
-      )}
-
       {(scoredZones.some((z) => z.shots > 0) || concededZones.some((z) => z.shots > 0)) && (
         <section>
           <h2 className="mb-3 text-lg font-bold text-white">Zonas de gol de la temporada</h2>
@@ -332,21 +275,5 @@ export function Home() {
 
       {dialog}
     </div>
-  );
-}
-
-function HighlightCard({ player, label, value }: { player: Player; label: string; value: string }) {
-  return (
-    <Link
-      to={`/jugadores/${player.id}`}
-      className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]"
-    >
-      <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs uppercase leading-tight tracking-wide text-slate-500">{label}</p>
-        <p className="truncate font-bold text-white">{player.name}</p>
-        <p className="text-sm font-extrabold text-amber-400">{value}</p>
-      </div>
-    </Link>
   );
 }
