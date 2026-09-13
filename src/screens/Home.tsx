@@ -1,16 +1,30 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData, activeSeason } from '../stores/useAppData';
-import { computeMatchScore, computeTeamSeasonStats, matchOutcome } from '../stats/matchStats';
+import {
+  computeFieldPlayerStats,
+  computeGoalkeeperStats,
+  computeMatchScore,
+  computeTeamMatchStats,
+  computeTeamSeasonStats,
+  computeTeamZoneStats,
+  matchOutcome,
+} from '../stats/matchStats';
+import { computeMinutesPlayed } from '../stats/onCourt';
+import type { Player } from '../domain/types';
 import { ClubLogo } from '../components/ClubLogo';
+import { PlayerAvatar } from '../components/PlayerAvatar';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
-import { daysUntil, formatDate, scheduleLabel } from '../utils/time';
+import { daysUntil, formatClock, formatDate, scheduleLabel } from '../utils/time';
+
+const OUTCOME_LABEL_PLURAL = { win: 'victorias', loss: 'derrotas', draw: 'empates' } as const;
 
 export function Home() {
+  const players = useAppData((s) => s.players);
   const matches = useAppData((s) => s.matches);
   const events = useAppData((s) => s.events);
   const seasons = useAppData((s) => s.seasons);
@@ -27,18 +41,72 @@ export function Home() {
   const seasonEvents = useMemo(() => events.filter((e) => seasonMatchIds.has(e.matchId)), [events, seasonMatchIds]);
 
   const team = useMemo(() => computeTeamSeasonStats(seasonMatches, seasonEvents), [seasonMatches, seasonEvents]);
+  const homeStats = useMemo(
+    () => computeTeamSeasonStats(seasonMatches.filter((m) => m.isHome), seasonEvents),
+    [seasonMatches, seasonEvents]
+  );
+  const awayStats = useMemo(
+    () => computeTeamSeasonStats(seasonMatches.filter((m) => !m.isHome), seasonEvents),
+    [seasonMatches, seasonEvents]
+  );
+  const teamPerf = useMemo(() => computeTeamMatchStats(seasonEvents), [seasonEvents]);
 
-  const recentForm = useMemo(() => {
+  const finishedWithResults = useMemo(() => {
     return seasonMatches
       .filter((m) => m.status === 'finished')
       .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-5)
       .map((m) => {
         const matchEvents = events.filter((e) => e.matchId === m.id);
         const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
-        return { match: m, outcome: matchOutcome(goalsFor, goalsAgainst), goalsFor, goalsAgainst };
+        return { match: m, goalsFor, goalsAgainst, outcome: matchOutcome(goalsFor, goalsAgainst) };
       });
   }, [seasonMatches, events]);
+
+  const recentForm = useMemo(() => finishedWithResults.slice(-5), [finishedWithResults]);
+
+  const streak = useMemo(() => {
+    if (finishedWithResults.length === 0) return null;
+    const lastOutcome = finishedWithResults.at(-1)!.outcome;
+    let count = 0;
+    for (let i = finishedWithResults.length - 1; i >= 0; i--) {
+      if (finishedWithResults[i].outcome !== lastOutcome) break;
+      count++;
+    }
+    return { outcome: lastOutcome, count };
+  }, [finishedWithResults]);
+
+  const biggestWin = useMemo(() => {
+    return [...finishedWithResults]
+      .filter((r) => r.outcome === 'win')
+      .sort((a, b) => b.goalsFor - b.goalsAgainst - (a.goalsFor - a.goalsAgainst))[0];
+  }, [finishedWithResults]);
+
+  const scoredZones = useMemo(() => computeTeamZoneStats(seasonEvents, 'shot'), [seasonEvents]);
+  const concededZones = useMemo(() => computeTeamZoneStats(seasonEvents, 'gk_shot'), [seasonEvents]);
+  const maxScoredShots = Math.max(1, ...scoredZones.map((z) => z.shots));
+  const maxConcededShots = Math.max(1, ...concededZones.map((z) => z.shots));
+
+  const highlights = useMemo(() => {
+    let topScorer: { player: Player; value: number } | null = null;
+    let topKeeper: { player: Player; value: number } | null = null;
+    let mostMinutes: { player: Player; value: number } | null = null;
+
+    for (const p of players) {
+      if (p.position === 'player') {
+        const goals = computeFieldPlayerStats(seasonEvents, p.id).goals;
+        if (goals > 0 && (!topScorer || goals > topScorer.value)) topScorer = { player: p, value: goals };
+      } else {
+        const saves = computeGoalkeeperStats(seasonEvents, p.id).saves;
+        if (saves > 0 && (!topKeeper || saves > topKeeper.value)) topKeeper = { player: p, value: saves };
+      }
+      const minutes = seasonMatches.reduce((sum, m) => {
+        const matchEvents = events.filter((e) => e.matchId === m.id);
+        return sum + computeMinutesPlayed(matchEvents, p.id, m.clock.elapsedSeconds);
+      }, 0);
+      if (minutes > 0 && (!mostMinutes || minutes > mostMinutes.value)) mostMinutes = { player: p, value: minutes };
+    }
+    return { topScorer, topKeeper, mostMinutes };
+  }, [players, seasonEvents, seasonMatches, events]);
 
   const nextMatch = useMemo(() => {
     return [...matches]
@@ -110,7 +178,7 @@ export function Home() {
           <StatCard label="Dif." value={team.goalDiff} />
         </div>
         {recentForm.length > 0 && (
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Forma reciente</span>
             <div className="flex gap-1.5">
               {recentForm.map(({ match, outcome, goalsFor, goalsAgainst }) => (
@@ -127,11 +195,158 @@ export function Home() {
                 </Link>
               ))}
             </div>
+            {streak && streak.count > 1 && (
+              <span className="text-xs font-semibold text-slate-400">
+                · Racha: {streak.count} {OUTCOME_LABEL_PLURAL[streak.outcome]}
+              </span>
+            )}
           </div>
         )}
       </section>
 
+      {team.played > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold text-white">Rendimiento</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <StatCard label="Goles/partido" value={(team.goalsFor / team.played).toFixed(1)} />
+            <StatCard label="Encaj./partido" value={(team.goalsAgainst / team.played).toFixed(1)} />
+            <StatCard label="% Acierto tiro" value={`${teamPerf.shotPct}%`} />
+            <StatCard label="% Paradas" value={`${teamPerf.savePct}%`} />
+          </div>
+        </section>
+      )}
+
+      {(homeStats.played > 0 || awayStats.played > 0) && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold text-white">La temporada en cifras</h2>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Casa</p>
+              <p className="mt-0.5 font-bold text-white">
+                {homeStats.wins}V {homeStats.draws}E {homeStats.losses}D
+              </p>
+              <p className="text-xs text-slate-400">
+                {homeStats.goalsFor}-{homeStats.goalsAgainst} goles en {homeStats.played} PJ
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Fuera</p>
+              <p className="mt-0.5 font-bold text-white">
+                {awayStats.wins}V {awayStats.draws}E {awayStats.losses}D
+              </p>
+              <p className="text-xs text-slate-400">
+                {awayStats.goalsFor}-{awayStats.goalsAgainst} goles en {awayStats.played} PJ
+              </p>
+            </div>
+            {biggestWin ? (
+              <Link
+                to={`/partidos/${biggestWin.match.id}`}
+                className="rounded-2xl bg-emerald-500/10 p-3 ring-1 ring-emerald-500/25 transition-transform touch-manipulation active:scale-[0.98]"
+              >
+                <p className="text-xs uppercase tracking-wide text-emerald-400">Mayor victoria</p>
+                <p className="mt-0.5 font-bold text-white">vs {biggestWin.match.opponent}</p>
+                <p className="text-xs text-slate-400">
+                  {biggestWin.goalsFor}-{biggestWin.goalsAgainst}
+                </p>
+              </Link>
+            ) : (
+              <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Mayor victoria</p>
+                <p className="mt-0.5 text-sm text-slate-400">Todavía ninguna esta temporada</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {(highlights.topScorer || highlights.topKeeper || highlights.mostMinutes) && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold text-white">Destacados de la temporada</h2>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {highlights.topScorer && (
+              <HighlightCard
+                player={highlights.topScorer.player}
+                label="Máximo goleador"
+                value={`${highlights.topScorer.value} goles`}
+              />
+            )}
+            {highlights.topKeeper && (
+              <HighlightCard
+                player={highlights.topKeeper.player}
+                label="Más paradas"
+                value={`${highlights.topKeeper.value} paradas`}
+              />
+            )}
+            {highlights.mostMinutes && (
+              <HighlightCard
+                player={highlights.mostMinutes.player}
+                label="Más minutos jugados"
+                value={formatClock(highlights.mostMinutes.value)}
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      {(scoredZones.some((z) => z.shots > 0) || concededZones.some((z) => z.shots > 0)) && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold text-white">Zonas de gol de la temporada</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <p className="mb-2 text-xs text-slate-500">Goles marcados</p>
+              <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
+                {scoredZones.map((z) => (
+                  <div
+                    key={z.zone}
+                    className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
+                    style={{ backgroundColor: `rgba(37, 99, 235, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxScoredShots) : 0})` }}
+                  >
+                    <p className="text-xs text-slate-300">Zona {z.zone}</p>
+                    <p className="font-bold">
+                      {z.goals}/{z.shots}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-xs text-slate-500">Goles encajados</p>
+              <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
+                {concededZones.map((z) => (
+                  <div
+                    key={z.zone}
+                    className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
+                    style={{ backgroundColor: `rgba(244, 63, 94, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxConcededShots) : 0})` }}
+                  >
+                    <p className="text-xs text-slate-300">Zona {z.zone}</p>
+                    <p className="font-bold">
+                      {z.goals}/{z.shots}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {dialog}
     </div>
+  );
+}
+
+function HighlightCard({ player, label, value }: { player: Player; label: string; value: string }) {
+  return (
+    <Link
+      to={`/jugadores/${player.id}`}
+      className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]"
+    >
+      <PlayerAvatar playerId={player.id} name={player.name} className="h-11 w-11" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs uppercase leading-tight tracking-wide text-slate-500">{label}</p>
+        <p className="truncate font-bold text-white">{player.name}</p>
+        <p className="text-sm font-extrabold text-amber-400">{value}</p>
+      </div>
+    </Link>
   );
 }
