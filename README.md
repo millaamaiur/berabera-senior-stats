@@ -1,4 +1,4 @@
-# Bera Bera Senior — Estadísticas
+# BERA BERA — Estadísticas
 
 Webapp para anotar en directo y consultar las estadísticas del equipo senior del Bera Bera. Pensada para usarse desde el banquillo en una tablet durante el partido, y para que cualquiera pueda consultar el historial de resultados y stats desde el móvil o el ordenador.
 

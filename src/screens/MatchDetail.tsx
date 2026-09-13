@@ -82,7 +82,7 @@ export function MatchDetail() {
     <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
       <div className="flex flex-col gap-4 rounded-3xl bg-white/5 p-4 ring-1 ring-white/10 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Bera Bera Senior vs {match.opponent}</h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">BERA BERA vs {match.opponent}</h2>
           <p className="text-slate-400">
             {formatDate(match.date)} · {match.competition} · {match.isHome ? 'Casa' : 'Fuera'}
           </p>

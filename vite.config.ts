@@ -9,9 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Bera Bera Senior — Estadísticas',
+        name: 'BERA BERA — Estadísticas',
         short_name: 'Bera Bera Stats',
-        description: 'Anotación y estadísticas de balonmano para Bera Bera Senior',
+        description: 'Anotación y estadísticas de balonmano para BERA BERA',
         theme_color: '#06070c',
         background_color: '#06070c',
         display: 'standalone',

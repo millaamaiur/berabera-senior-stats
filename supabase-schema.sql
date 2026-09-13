@@ -1,4 +1,4 @@
--- Bera Bera Senior — esquema de Supabase
+-- BERA BERA — esquema de Supabase
 -- Pega esto entero en el SQL Editor de tu proyecto de Supabase y dale a "Run".
 
 create table players (
