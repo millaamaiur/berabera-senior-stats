@@ -22,6 +22,7 @@ import { updateEventAndReload, deleteEventAndReload } from '../stores/eventActio
 import { dataProvider } from '../data';
 import { writeOrQueue } from '../data/offline/queue';
 import { useAuthStore } from '../stores/useAuthStore';
+import { TEAM_NAME } from '../config';
 
 type Tab = 'roster' | 'stats';
 
@@ -82,7 +83,7 @@ export function MatchDetail() {
     <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
       <div className="flex flex-col gap-4 rounded-3xl bg-white/5 p-4 ring-1 ring-white/10 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">BERA BERA vs {match.opponent}</h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">{TEAM_NAME} vs {match.opponent}</h2>
           <p className="text-slate-400">
             {formatDate(match.date)} · {match.competition} · {match.isHome ? 'Casa' : 'Fuera'}
           </p>
@@ -159,7 +160,7 @@ export function MatchDetail() {
           <div className="flex flex-col gap-4 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
             <div className="flex items-center justify-center gap-6 text-xs font-bold">
               <span className="flex items-center gap-1.5 text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-amber-500" /> Bera Bera
+                <span className="h-2 w-2 rounded-full bg-amber-500" /> {TEAM_NAME}
               </span>
               <span className="flex items-center gap-1.5 text-sky-400">
                 <span className="h-2 w-2 rounded-full bg-sky-500" /> {match.opponent}

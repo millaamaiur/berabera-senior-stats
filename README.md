@@ -50,3 +50,13 @@ npm run lint     # oxlint
 ```
 
 Hace falta un proyecto de Supabase con el esquema de `supabase-schema.sql` y un `.env.local` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para que la app tenga datos con los que trabajar; sin ellas, la app sigue arrancando pero no habrá partidos ni jugadores que mostrar.
+
+## Reutilizar esta app para otro equipo/categoría del club
+
+El código es el mismo para cualquier equipo — lo único que cambia por equipo es la configuración:
+
+1. Crear un proyecto de Supabase nuevo y pegar `supabase-schema.sql` en su SQL Editor (con la plantilla de esa categoría en vez de la del senior).
+2. Crear un proyecto de Vercel nuevo importando este mismo repositorio.
+3. Configurar sus propias variables de entorno (en Vercel, o en `.env.local` para desarrollo): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (las de su proyecto de Supabase) y `VITE_TEAM_NAME` (p.ej. `BERA BERA CADETE`).
+
+Al compartir el mismo repositorio, cualquier mejora o arreglo que se haga aquí y se suba a `main` se despliega automáticamente en todos los equipos a la vez.
