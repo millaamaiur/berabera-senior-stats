@@ -25,10 +25,11 @@ export function describeEventDetail(event: MatchEvent): string | null {
   switch (event.eventType) {
     case 'shot':
       return `${RESULT_LABELS[event.eventData.result]}${event.eventData.context === 'penalty' ? ' · penalti' : ''}`;
-    case 'gk_shot':
-      return `${RESULT_LABELS[event.eventData.result]} · zona ${event.eventData.zone}${
-        event.eventData.context === 'penalty' ? ' · penalti' : ''
-      }`;
+    case 'gk_shot': {
+      const label = event.eventData.result === 'miss' ? 'Fuera' : RESULT_LABELS[event.eventData.result];
+      const zonePart = event.eventData.zone !== undefined ? ` · zona ${event.eventData.zone}` : '';
+      return `${label}${zonePart}${event.eventData.context === 'penalty' ? ' · penalti' : ''}`;
+    }
     case 'court_change':
       return event.eventData.action === 'enter' ? 'Entra a pista' : 'Sale de pista';
     default:
@@ -42,7 +43,8 @@ export function describeEventForToast(event: MatchEvent, playerName: string): st
     case 'shot':
       return event.eventData.result === 'goal' ? `¡Gol de ${playerName}!` : `Fallo de ${playerName}`;
     case 'gk_shot':
-      return event.eventData.result === 'goal' ? `Gol encajado (${playerName})` : `Parada de ${playerName}`;
+      if (event.eventData.result === 'goal') return `Gol encajado (${playerName})`;
+      return event.eventData.result === 'miss' ? 'Tiro fuera' : `Parada de ${playerName}`;
     default:
       return `${EVENT_LABELS[event.eventType]} · ${playerName}`;
   }

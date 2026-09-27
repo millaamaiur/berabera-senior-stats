@@ -24,12 +24,12 @@ export function shot(
   } as MatchEvent;
 }
 
-/** Builds a goalkeeper shot-faced event (a rival attempt against us). */
+/** Builds a goalkeeper shot-faced event (a rival attempt against us). Omit `zone` for "Fuera" (missed the frame, never challenged the keeper). */
 export function gkShot(
   playerId: string,
   timestamp: number,
-  result: 'save' | 'goal',
-  zone: number,
+  result: 'save' | 'goal' | 'miss',
+  zone?: number,
   context: 'open_play' | 'penalty' = 'open_play'
 ): MatchEvent {
   return {
