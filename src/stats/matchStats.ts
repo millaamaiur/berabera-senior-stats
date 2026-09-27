@@ -116,9 +116,11 @@ export interface GoalkeeperStats {
   penaltySavePct: number;
 }
 
+/** A `result: 'miss'` gk_shot ("Fuera") never challenged the keeper at all, so it's excluded up front — it must not count toward shotsFaced, saves, or goalsConceded in either direction. */
 export function computeGoalkeeperStats(events: MatchEvent[], playerId: string): GoalkeeperStats {
   const own = events.filter(
-    (e): e is Extract<MatchEvent, { eventType: 'gk_shot' }> => e.eventType === 'gk_shot' && e.playerId === playerId
+    (e): e is Extract<MatchEvent, { eventType: 'gk_shot' }> =>
+      e.eventType === 'gk_shot' && e.playerId === playerId && e.eventData.result !== 'miss'
   );
   const openPlay = own.filter((e) => e.eventData.context === 'open_play');
   const penalties = own.filter((e) => e.eventData.context === 'penalty');
@@ -163,6 +165,7 @@ export function computeDefensiveOnCourtStats(events: MatchEvent[], playerId: str
   let stopped = 0;
   for (const e of events) {
     if (e.eventType !== 'gk_shot') continue;
+    if (e.eventData.result === 'miss') continue; // "Fuera" — never actually challenged the defense
     if (!getOnCourtAt(events, e.timestamp).has(playerId)) continue;
     if (e.eventData.result === 'goal') goalsAgainst++;
     else stopped++;
@@ -230,7 +233,9 @@ export interface TeamMatchStats {
 export function computeTeamMatchStats(events: MatchEvent[]): TeamMatchStats {
   const shots = events.filter((e): e is Extract<MatchEvent, { eventType: 'shot' }> => e.eventType === 'shot');
   const goals = shots.filter((e) => e.eventData.result === 'goal').length;
-  const gkShots = events.filter((e): e is Extract<MatchEvent, { eventType: 'gk_shot' }> => e.eventType === 'gk_shot');
+  const gkShots = events.filter(
+    (e): e is Extract<MatchEvent, { eventType: 'gk_shot' }> => e.eventType === 'gk_shot' && e.eventData.result !== 'miss'
+  );
   const saves = gkShots.filter((e) => e.eventData.result === 'save').length;
   const goalsConceded = gkShots.filter((e) => e.eventData.result === 'goal').length;
   return {
@@ -317,8 +322,12 @@ export function computeMatchComparison(events: MatchEvent[]): MatchComparison {
   };
   rival.shotPct = rival.attempts ? Math.round((rival.goals / rival.attempts) * 100) : 0;
 
-  const ourShotsFaced = rivalShots.length;
-  const ourSaves = rivalShots.filter((e) => e.eventData.result === 'save').length;
+  // rival.attempts above counts every rivalShot, "Fuera" included — a wide shot is
+  // still a genuine attempt on their shooting line. But it never actually
+  // challenged our keeper, so it must not inflate ourShotsFaced/ourSavePct.
+  const rivalShotsOnTarget = rivalShots.filter((e) => e.eventData.result !== 'miss');
+  const ourShotsFaced = rivalShotsOnTarget.length;
+  const ourSaves = rivalShotsOnTarget.filter((e) => e.eventData.result === 'save').length;
   const rivalShotsFaced = ourOnTarget.length;
   const rivalSaves = ourOnTarget.filter((e) => e.eventData.result === 'miss').length;
 

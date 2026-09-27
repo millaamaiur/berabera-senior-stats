@@ -49,8 +49,16 @@ export function ActionPanel({ player }: ActionPanelProps) {
     setStep({ kind: 'shot', flow });
   }
 
-  function chooseResult(result: 'goal' | 'miss' | 'save') {
+  async function chooseResult(result: 'goal' | 'miss' | 'save') {
     if (!step || step.kind !== 'shot') return;
+    // A gk "Fuera" never reaches the goal frame at all, so there's no zone to
+    // pick — unlike a field "Fallo", which might still be on target (saved)
+    // and needs one. Record it immediately instead of moving to that step.
+    if (step.flow.kind === 'gk' && result === 'miss') {
+      await recordGkShot(player.id, { result: 'miss', context: step.flow.context });
+      finishAndReset();
+      return;
+    }
     setStep({ ...step, result });
   }
 
@@ -65,8 +73,9 @@ export function ActionPanel({ player }: ActionPanelProps) {
   }
 
   if (step?.kind === 'shot' && !step.result) {
-    const options = step.flow.kind === 'field' ? (['goal', 'miss'] as const) : (['save', 'goal'] as const);
-    const labels: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada' };
+    const options = step.flow.kind === 'field' ? (['goal', 'miss'] as const) : (['save', 'goal', 'miss'] as const);
+    const labels: Record<string, string> =
+      step.flow.kind === 'gk' ? { save: 'Parada', goal: 'Gol', miss: 'Fuera' } : { goal: 'Gol', miss: 'Fallo' };
     return (
       <div className="flex flex-col items-center gap-4">
         <p className="text-lg font-semibold text-white">¿Resultado?</p>

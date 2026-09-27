@@ -68,8 +68,9 @@ export interface FieldShotEventData {
 }
 
 export interface GkShotEventData {
-  result: 'save' | 'goal';
-  zone: Zone;
+  result: 'save' | 'goal' | 'miss';
+  /** Absent when the shot missed the goal frame entirely ("fuera") — no save or goal either way. */
+  zone?: Zone;
   context: 'open_play' | 'penalty';
 }
 

@@ -147,6 +147,15 @@ describe('computeGoalkeeperStats', () => {
     expect(stats.openPlayGoalsConceded).toBe(19);
     expect(stats.penaltiesConceded).toBe(1);
   });
+
+  it('excludes "Fuera" (miss) shots entirely — they never challenged the keeper', () => {
+    const events: MatchEvent[] = [gkShot('gk1', 1, 'save', 5), gkShot('gk1', 2, 'goal', 5), gkShot('gk1', 3, 'miss')];
+    const stats = computeGoalkeeperStats(events, 'gk1');
+    expect(stats.shotsFaced).toBe(2);
+    expect(stats.saves).toBe(1);
+    expect(stats.goalsConceded).toBe(1);
+    expect(stats.savePct).toBe(50);
+  });
 });
 
 describe('computeDefensiveOnCourtStats', () => {
@@ -159,6 +168,16 @@ describe('computeDefensiveOnCourtStats', () => {
     ];
     const stats = computeDefensiveOnCourtStats(events, 'p1');
     expect(stats).toEqual({ attacksFaced: 1, goalsAgainst: 1, stopped: 0, stopPct: 0 });
+  });
+
+  it('does not credit or blame anyone on court for a "Fuera" (miss) shot', () => {
+    const events: MatchEvent[] = [
+      courtChange('p1', 0, 'enter'),
+      gkShot('gk1', 5, 'save', 5), // a real stop — counts
+      gkShot('gk1', 6, 'miss'), // wide — must not inflate stopped or attacksFaced
+    ];
+    const stats = computeDefensiveOnCourtStats(events, 'p1');
+    expect(stats).toEqual({ attacksFaced: 1, goalsAgainst: 0, stopped: 1, stopPct: 100 });
   });
 });
 
@@ -178,6 +197,12 @@ describe('computeZoneStats / computeTeamZoneStats', () => {
     const team = computeTeamZoneStats(events, 'shot');
     const teamZone5 = team.find((z) => z.zone === 5)!;
     expect(teamZone5).toEqual({ zone: 5, shots: 3, goals: 2 });
+  });
+
+  it('skips a "Fuera" (miss) gk_shot too, since it has no zone to bucket', () => {
+    const events: MatchEvent[] = [gkShot('gk1', 1, 'save', 5), gkShot('gk1', 2, 'miss')];
+    const zones = computeTeamZoneStats(events, 'gk_shot');
+    expect(zones.reduce((sum, z) => sum + z.shots, 0)).toBe(1);
   });
 });
 
@@ -199,6 +224,14 @@ describe('computeTeamMatchStats', () => {
     expect(stats.saves).toBe(1);
     expect(stats.goalsConceded).toBe(1);
     expect(stats.exclusions).toBe(1);
+  });
+
+  it('excludes "Fuera" (miss) gk_shot events from shotsFaced/saves/savePct', () => {
+    const events: MatchEvent[] = [gkShot('gk1', 1, 'save', 5), gkShot('gk1', 2, 'miss')];
+    const stats = computeTeamMatchStats(events);
+    expect(stats.shotsFaced).toBe(1);
+    expect(stats.saves).toBe(1);
+    expect(stats.savePct).toBe(100);
   });
 });
 
@@ -238,6 +271,19 @@ describe('computeMatchComparison', () => {
     expect(comparison.ourSaves).toBe(1);
     expect(comparison.rivalShotsFaced).toBe(2); // the two on-target shots, "Fuera" excluded
     expect(comparison.rivalSaves).toBe(1); // our one on-target miss
+  });
+
+  it('counts a rival "Fuera" (miss) shot as one of their attempts, but not as one of our keeper\'s shots faced', () => {
+    const events: MatchEvent[] = [gkShot('gk1', 1, 'save', 5), gkShot('gk1', 2, 'miss')];
+    const comparison = computeMatchComparison(events);
+
+    expect(comparison.rival.attempts).toBe(2); // the wide shot was still a real attempt on goal
+    expect(comparison.rival.goals).toBe(0);
+    expect(comparison.rival.shotPct).toBe(0);
+
+    expect(comparison.ourShotsFaced).toBe(1); // but it never actually challenged the keeper
+    expect(comparison.ourSaves).toBe(1);
+    expect(comparison.ourSavePct).toBe(100);
   });
 });
 

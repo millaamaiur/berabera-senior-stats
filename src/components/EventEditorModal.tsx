@@ -75,6 +75,17 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
     }
   }
 
+  async function chooseGkResult(result: string) {
+    if (target.kind !== 'single' || target.event.eventType !== 'gk_shot') return;
+    if (result === 'miss') {
+      // "Fuera" has no zone to pick, so save it right away instead of waiting for a zone tap.
+      await onUpdateEvent({ ...target.event, eventData: { ...target.event.eventData, result: 'miss', zone: undefined } });
+      onClose();
+      return;
+    }
+    setDraftResult(result);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm">
       <div className="flex w-full max-w-sm flex-col gap-4 rounded-3xl bg-panel/95 p-4 shadow-2xl ring-1 ring-white/10">
@@ -114,22 +125,26 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
               <div className="flex flex-col items-center gap-3">
                 <p className="text-sm font-semibold text-slate-300">Resultado</p>
                 <div className="flex gap-2">
-                  {(target.event.eventType === 'shot' ? ['goal', 'miss'] : ['save', 'goal']).map((opt) => (
+                  {(target.event.eventType === 'shot' ? ['goal', 'miss'] : ['save', 'goal', 'miss']).map((opt) => (
                     <button
                       key={opt}
                       type="button"
-                      onClick={() => setDraftResult(opt)}
+                      onClick={() => (target.event.eventType === 'gk_shot' ? chooseGkResult(opt) : setDraftResult(opt))}
                       className={[
                         'rounded-full px-4 py-2 font-bold ring-1 transition-transform touch-manipulation active:scale-95',
                         draftResult === opt ? 'bg-amber-500 text-slate-900 ring-amber-400' : 'bg-white/5 text-white ring-white/10',
                       ].join(' ')}
                     >
-                      {RESULT_LABELS[opt]}
+                      {target.event.eventType === 'gk_shot' && opt === 'miss' ? 'Fuera' : RESULT_LABELS[opt]}
                     </button>
                   ))}
                 </div>
-                <p className="text-sm font-semibold text-slate-300">Zona (toca para guardar)</p>
-                <ShotGrid3x3 onSelectZone={handleZoneClick} allowOutside={target.event.eventType === 'shot'} />
+                {!(target.event.eventType === 'gk_shot' && draftResult === 'miss') && (
+                  <>
+                    <p className="text-sm font-semibold text-slate-300">Zona (toca para guardar)</p>
+                    <ShotGrid3x3 onSelectZone={handleZoneClick} allowOutside={target.event.eventType === 'shot'} />
+                  </>
+                )}
               </div>
             )}
 
