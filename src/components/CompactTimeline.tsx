@@ -7,11 +7,19 @@ interface CompactTimelineProps {
   events: MatchEvent[];
   players: Player[];
   onRowClick?: (row: TimelineRow) => void;
+  /** Keep only rows involving this player — filtered after building, so substitutions still pair correctly. */
+  onlyPlayerId?: string;
 }
 
 /** A narrow timeline for the finished-match detail screen — same data as the full timeline, in less width. */
-export function CompactTimeline({ events, players, onRowClick }: CompactTimelineProps) {
-  const rows = buildTimeline(events, players);
+export function CompactTimeline({ events, players, onRowClick, onlyPlayerId }: CompactTimelineProps) {
+  const rows = buildTimeline(events, players).filter(
+    (row) =>
+      !onlyPlayerId ||
+      (row.kind === 'substitution'
+        ? row.playerOut.id === onlyPlayerId || row.playerIn.id === onlyPlayerId
+        : row.event.playerId === onlyPlayerId)
+  );
   const rowClass =
     'flex flex-col gap-0.5 rounded-xl bg-white/5 px-2 py-1.5 text-left ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]';
 

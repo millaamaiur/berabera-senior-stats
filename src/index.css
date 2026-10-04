@@ -17,7 +17,7 @@
  * Light mode re-points Tailwind's own color tokens (white, slate, and the
  * accent -300/-400 shades) instead of adding `dark:`/light: variants to every
  * className in the app. This works because those shades are used consistently
- * for one meaning each: white/slate-300..600 as "ink on a neutral surface",
+ * for one meaning each: white/slate-200..600 as "ink on a neutral surface",
  * and accent-300/400 as "accent text on a neutral surface" — never as a fixed
  * color against another fixed color. The one spot where a color really must
  * stay literal (an on-court chip that's always a white pill, regardless of
@@ -27,6 +27,7 @@
   color-scheme: light;
   --app-bg: #f2f3f8;
   --color-white: #0f172a;
+  --color-slate-200: #1e293b;
   --color-slate-300: #334155;
   --color-slate-400: #475569;
   --color-slate-500: #52525b;

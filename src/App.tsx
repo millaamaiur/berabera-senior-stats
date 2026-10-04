@@ -9,6 +9,9 @@ const MatchDetail = lazy(() => import('./screens/MatchDetail').then((m) => ({ de
 const AnotarSession = lazy(() => import('./screens/AnotarSession').then((m) => ({ default: m.AnotarSession })));
 const Players = lazy(() => import('./screens/Players').then((m) => ({ default: m.Players })));
 const PlayerProfile = lazy(() => import('./screens/PlayerProfile').then((m) => ({ default: m.PlayerProfile })));
+const PlayerMatchStats = lazy(() =>
+  import('./screens/PlayerMatchStats').then((m) => ({ default: m.PlayerMatchStats }))
+);
 const Unlock = lazy(() => import('./screens/Unlock').then((m) => ({ default: m.Unlock })));
 
 export default function App() {
@@ -22,6 +25,7 @@ export default function App() {
         <Route path="anotar/:matchId" element={<AnotarSession />} />
         <Route path="jugadores" element={<Players />} />
         <Route path="jugadores/:id" element={<PlayerProfile />} />
+        <Route path="jugadores/:id/partidos/:matchId" element={<PlayerMatchStats />} />
         <Route path="desbloquear" element={<Unlock />} />
       </Route>
     </Routes>

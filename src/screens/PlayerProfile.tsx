@@ -6,13 +6,12 @@ import {
   computeFieldPlayerStats,
   computeGoalkeeperStats,
   computeMatchScore,
-  computeZoneStats,
   matchOutcome,
 } from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { formatClock, formatDate } from '../utils/time';
 import { PlayerAvatar } from '../components/PlayerAvatar';
-import { StatCard } from '../components/StatCard';
+import { PlayerStatsSummary } from '../components/PlayerStatsSummary';
 import { Badge } from '../components/Badge';
 
 export function PlayerProfile() {
@@ -58,10 +57,6 @@ export function PlayerProfile() {
   }
 
   const isGoalkeeper = player.position === 'goalkeeper';
-  const fieldStats = !isGoalkeeper ? computeFieldPlayerStats(events, player.id) : null;
-  const gkStats = isGoalkeeper ? computeGoalkeeperStats(events, player.id) : null;
-  const zoneStats = computeZoneStats(events, player.id, isGoalkeeper ? 'gk_shot' : 'shot');
-  const maxZoneShots = Math.max(1, ...zoneStats.map((z) => z.shots));
 
   return (
     <div className="flex flex-col gap-7 p-4 pt-6 sm:p-6">
@@ -73,85 +68,46 @@ export function PlayerProfile() {
         </div>
       </div>
 
-      <section className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        <StatCard label="Partidos" value={playedMatches.length} />
-        <StatCard label="Minutos" value={formatClock(totalMinutes)} />
-        {fieldStats && (
-          <>
-            <StatCard label="Goles" value={fieldStats.goals} />
-            <StatCard label="Lanz." value={fieldStats.shots} />
-            <StatCard label="% Acierto" value={`${fieldStats.shotPct}%`} />
-            {fieldStats.penaltiesTaken > 0 && (
-              <>
-                <StatCard label="Penaltis lanz." value={fieldStats.penaltiesTaken} />
-                <StatCard label="Penaltis gol" value={fieldStats.penaltiesScored} />
-                <StatCard label="% Penaltis" value={`${fieldStats.penaltyScorePct}%`} />
-              </>
-            )}
-            <StatCard label="Pérdidas" value={fieldStats.turnovers} />
-            <StatCard label="Recup." value={fieldStats.recoveries} />
-            <StatCard label="Pasos" value={fieldStats.steps} />
-            <StatCard label="Amarillas" value={fieldStats.yellowCards} />
-            <StatCard label="Rojas" value={fieldStats.redCards} />
-            <StatCard label="Azules" value={fieldStats.blueCards} />
-            <StatCard label="Exclus." value={fieldStats.exclusions} />
-          </>
-        )}
-        {gkStats && (
-          <>
-            <StatCard label="Lanz. recib." value={gkStats.shotsFaced} />
-            <StatCard label="Paradas" value={gkStats.saves} />
-            <StatCard label="Goles recib." value={gkStats.goalsConceded} />
-            <StatCard label="% Paradas" value={`${gkStats.savePct}%`} />
-            <StatCard label="Penaltis recib." value={gkStats.penaltiesFaced} />
-            <StatCard label="Penaltis parados" value={gkStats.penaltiesSaved} />
-            <StatCard label="Penaltis gol" value={gkStats.penaltiesConceded} />
-            <StatCard label="% Parada penalti" value={`${gkStats.penaltySavePct}%`} />
-          </>
-        )}
-        <StatCard label="GC en pista" value={defenseStats.goalsAgainst} />
-        <StatCard label="% Def. equipo" value={defenseStats.attacksFaced ? `${defenseStats.stopPct}%` : '—'} />
-      </section>
-
-      <section>
-        <h3 className="mb-2 text-lg font-bold text-white">Zonas de lanzamiento</h3>
-        <p className="mb-2 text-xs text-slate-500">El color indica el volumen de lanzamientos a cada zona</p>
-        <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
-          {zoneStats.map((z) => {
-            const intensity = z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxZoneShots) : 0;
-            return (
-              <div
-                key={z.zone}
-                className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
-                style={{ backgroundColor: `rgba(37, 99, 235, ${intensity})` }}
-              >
-                <p className="text-xs text-slate-300">Zona {z.zone}</p>
-                <p className="font-bold">
-                  {z.goals}/{z.shots}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <PlayerStatsSummary
+        player={player}
+        events={events}
+        minutesSeconds={totalMinutes}
+        defense={defenseStats}
+        matchesPlayed={playedMatches.length}
+      />
 
       <section>
         <h3 className="mb-2 text-lg font-bold text-white">Partidos</h3>
+        <p className="mb-2 text-xs text-slate-500">Toca un partido para ver sus estadísticas en él</p>
         <div className="flex flex-col gap-2">
           {playedMatches.map((m) => {
             const matchEvents = events.filter((e) => e.matchId === m.id);
             const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
             const outcome = matchOutcome(goalsFor, goalsAgainst);
+            const minutes = computeMinutesPlayed(matchEvents, player.id, m.clock.elapsedSeconds);
+            let headline: string;
+            if (isGoalkeeper) {
+              const gk = computeGoalkeeperStats(matchEvents, player.id);
+              headline = `${gk.saves}/${gk.shotsFaced} paradas`;
+            } else {
+              const field = computeFieldPlayerStats(matchEvents, player.id);
+              headline = `${field.goals}/${field.shots} goles`;
+            }
             return (
               <Link
                 key={m.id}
-                to={`/partidos/${m.id}`}
-                className="flex items-center justify-between rounded-2xl bg-white/5 p-3 text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]"
+                to={`/jugadores/${player.id}/partidos/${m.id}`}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 p-3 text-white ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.99]"
               >
-                <span className="font-semibold">
-                  {formatDate(m.date)} vs {m.opponent}
-                </span>
-                <span className="flex items-center gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">
+                    {formatDate(m.date)} vs {m.opponent}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {formatClock(minutes)} · {headline}
+                  </p>
+                </div>
+                <span className="flex shrink-0 items-center gap-3">
                   <span className="text-sm text-slate-400">
                     {goalsFor} - {goalsAgainst}
                   </span>
