@@ -34,7 +34,7 @@ export function AnotarSession() {
   const selectPlayer = useLiveMatchStore((s) => s.selectPlayer);
   const startClock = useLiveMatchStore((s) => s.startClock);
   const pauseClock = useLiveMatchStore((s) => s.pauseClock);
-  const checkHalftime = useLiveMatchStore((s) => s.checkHalftime);
+  const checkPeriodEnd = useLiveMatchStore((s) => s.checkPeriodEnd);
   const getElapsedSeconds = useLiveMatchStore((s) => s.getElapsedSeconds);
   const toggleCourt = useLiveMatchStore((s) => s.toggleCourt);
   const confirmSubstitution = useLiveMatchStore((s) => s.confirmSubstitution);
@@ -68,7 +68,7 @@ export function AnotarSession() {
     if (!match?.clock.running) return;
     const interval = setInterval(() => {
       forceTick((t) => t + 1);
-      checkHalftime();
+      checkPeriodEnd();
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,6 +112,7 @@ export function AnotarSession() {
       : 'Solo puedes iniciar el partido el día programado';
   const showSecondHalfPrompt = match.clock.halftimeReached && !match.clock.secondHalfStarted && !match.clock.running;
   const showHalftimeScreen = showSecondHalfPrompt && !dismissedHalftimeStats;
+  const atFullTime = match.clock.fullTimeReached === true && !match.clock.running;
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
 
@@ -214,6 +215,7 @@ export function AnotarSession() {
               {formatClock(getElapsedSeconds())}
             </span>
             {showSecondHalfPrompt && <span className="mt-0.5 text-[0.65rem] font-bold text-amber-400">DESCANSO</span>}
+            {atFullTime && <span className="mt-0.5 text-[0.65rem] font-bold text-amber-400">FINAL</span>}
           </div>
           {match.clock.running ? (
             <button type="button" onClick={() => pauseClock()} className={btnClass('slate')}>
@@ -224,10 +226,12 @@ export function AnotarSession() {
               type="button"
               onClick={() => startClock()}
               disabled={!canStart}
-              className={btnClass(showSecondHalfPrompt ? 'amber' : 'emerald') + (canStart ? '' : ' opacity-40')}
-              title={startDisabledReason}
+              className={
+                btnClass(showSecondHalfPrompt ? 'amber' : atFullTime ? 'slate' : 'emerald') + (canStart ? '' : ' opacity-40')
+              }
+              title={atFullTime ? 'Solo si el partido va a prórroga' : startDisabledReason}
             >
-              {showSecondHalfPrompt ? 'Iniciar segunda parte' : 'Iniciar'}
+              {showSecondHalfPrompt ? 'Iniciar segunda parte' : atFullTime ? 'Prórroga' : 'Iniciar'}
             </button>
           )}
         </div>

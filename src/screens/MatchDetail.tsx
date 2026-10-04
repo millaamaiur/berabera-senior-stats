@@ -4,10 +4,12 @@ import { useAppData } from '../stores/useAppData';
 import {
   computeMatchComparison,
   computeMatchScore,
+  computeOutsideShots,
   computeTeamMatchStats,
   computeTeamZoneStats,
   matchOutcome,
 } from '../stats/matchStats';
+import { ZoneMap } from '../components/ZoneMap';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { formatDate } from '../utils/time';
 import { MatchRosterTable } from '../components/MatchRosterTable';
@@ -60,8 +62,6 @@ export function MatchDetail() {
   const comparison = computeMatchComparison(matchEvents);
   const attackZones = computeTeamZoneStats(matchEvents, 'shot');
   const concededZones = computeTeamZoneStats(matchEvents, 'gk_shot');
-  const maxAttackShots = Math.max(1, ...attackZones.map((z) => z.shots));
-  const maxConcededShots = Math.max(1, ...concededZones.map((z) => z.shots));
   const roster = players.filter((p) => match.calledPlayerIds.includes(p.id));
   const onCourtIdsAtEnd = new Set(matchEvents.filter((e) => e.eventType === 'court_change').map((e) => e.playerId));
   const lockedPlayerIds = new Set([...onCourtIdsAtEnd, ...matchEvents.map((e) => e.playerId)]);
@@ -204,37 +204,11 @@ export function MatchDetail() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-2 text-xs text-slate-500">Zonas de gol del equipo</p>
-              <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
-                {attackZones.map((z) => (
-                  <div
-                    key={z.zone}
-                    className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
-                    style={{ backgroundColor: `rgba(37, 99, 235, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxAttackShots) : 0})` }}
-                  >
-                    <p className="text-xs text-slate-300">Zona {z.zone}</p>
-                    <p className="font-bold">
-                      {z.goals}/{z.shots}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <ZoneMap zones={attackZones} outside={computeOutsideShots(matchEvents, 'shot')} rgb="37, 99, 235" />
             </div>
             <div>
               <p className="mb-2 text-xs text-slate-500">Zonas de gol encajadas</p>
-              <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
-                {concededZones.map((z) => (
-                  <div
-                    key={z.zone}
-                    className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
-                    style={{ backgroundColor: `rgba(244, 63, 94, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxConcededShots) : 0})` }}
-                  >
-                    <p className="text-xs text-slate-300">Zona {z.zone}</p>
-                    <p className="font-bold">
-                      {z.goals}/{z.shots}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <ZoneMap zones={concededZones} outside={computeOutsideShots(matchEvents, 'gk_shot')} rgb="244, 63, 94" />
             </div>
           </div>
         </section>

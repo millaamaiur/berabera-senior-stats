@@ -2,11 +2,13 @@ import type { MatchEvent, Player } from '../domain/types';
 import {
   computeFieldPlayerStats,
   computeGoalkeeperStats,
+  computeOutsideShots,
   computeZoneStats,
   type DefensiveOnCourtStats,
 } from '../stats/matchStats';
 import { formatClock } from '../utils/time';
 import { StatCard } from './StatCard';
+import { ZoneMap } from './ZoneMap';
 
 interface PlayerStatsSummaryProps {
   player: Player;
@@ -22,8 +24,9 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
   const isGoalkeeper = player.position === 'goalkeeper';
   const fieldStats = !isGoalkeeper ? computeFieldPlayerStats(events, player.id) : null;
   const gkStats = isGoalkeeper ? computeGoalkeeperStats(events, player.id) : null;
-  const zoneStats = computeZoneStats(events, player.id, isGoalkeeper ? 'gk_shot' : 'shot');
-  const maxZoneShots = Math.max(1, ...zoneStats.map((z) => z.shots));
+  const shotKind = isGoalkeeper ? 'gk_shot' : 'shot';
+  const zoneStats = computeZoneStats(events, player.id, shotKind);
+  const outsideShots = computeOutsideShots(events, shotKind, player.id);
 
   return (
     <>
@@ -70,23 +73,7 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
       <section>
         <h3 className="mb-2 text-lg font-bold text-white">Zonas de lanzamiento</h3>
         <p className="mb-2 text-xs text-slate-500">El color indica el volumen de lanzamientos a cada zona</p>
-        <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
-          {zoneStats.map((z) => {
-            const intensity = z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxZoneShots) : 0;
-            return (
-              <div
-                key={z.zone}
-                className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
-                style={{ backgroundColor: `rgba(37, 99, 235, ${intensity})` }}
-              >
-                <p className="text-xs text-slate-300">Zona {z.zone}</p>
-                <p className="font-bold">
-                  {z.goals}/{z.shots}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+        <ZoneMap zones={zoneStats} outside={outsideShots} rgb="37, 99, 235" />
       </section>
     </>
   );

@@ -6,6 +6,7 @@ import {
   computeGoalkeeperStats,
   computeMatchComparison,
   computeMatchScore,
+  computeOutsideShots,
   computeScoreDiffBuckets,
   computeScoreDiffTimeline,
   computeTeamMatchStats,
@@ -203,6 +204,22 @@ describe('computeZoneStats / computeTeamZoneStats', () => {
     const events: MatchEvent[] = [gkShot('gk1', 1, 'save', 5), gkShot('gk1', 2, 'miss')];
     const zones = computeTeamZoneStats(events, 'gk_shot');
     expect(zones.reduce((sum, z) => sum + z.shots, 0)).toBe(1);
+  });
+});
+
+describe('computeOutsideShots', () => {
+  it('counts the "Fuera" shots the zone maps skip, per player or for the whole team', () => {
+    const events: MatchEvent[] = [
+      shot('p1', 1, 'miss'), // Fuera
+      shot('p1', 2, 'miss', { zone: 3 }), // on target — not Fuera
+      shot('p2', 3, 'miss'), // Fuera, another player
+      gkShot('gk1', 4, 'miss'), // rival shot wide
+      gkShot('gk1', 5, 'save', 5),
+    ];
+    expect(computeOutsideShots(events, 'shot', 'p1')).toBe(1);
+    expect(computeOutsideShots(events, 'shot')).toBe(2);
+    expect(computeOutsideShots(events, 'gk_shot')).toBe(1);
+    expect(computeOutsideShots(events, 'gk_shot', 'gk1')).toBe(1);
   });
 });
 

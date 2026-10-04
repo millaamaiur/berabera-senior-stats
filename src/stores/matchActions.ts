@@ -25,7 +25,15 @@ export async function createMatch(input: NewMatchInput): Promise<Match> {
     isHome: input.isHome,
     calledPlayerIds: input.calledPlayerIds,
     status: 'scheduled',
-    clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false, halftimeReached: false, secondHalfStarted: false },
+    clock: {
+      elapsedSeconds: 0,
+      running: false,
+      lastStartedAt: null,
+      hasStartedOnce: false,
+      halftimeReached: false,
+      secondHalfStarted: false,
+      fullTimeReached: false,
+    },
     createdAt: Date.now(),
     seasonId: season?.id ?? '',
   };
@@ -57,7 +65,15 @@ export async function cancelMatch(match: Match): Promise<void> {
   const updated: Match = {
     ...match,
     status: 'scheduled',
-    clock: { elapsedSeconds: 0, running: false, lastStartedAt: null, hasStartedOnce: false, halftimeReached: false, secondHalfStarted: false },
+    clock: {
+      elapsedSeconds: 0,
+      running: false,
+      lastStartedAt: null,
+      hasStartedOnce: false,
+      halftimeReached: false,
+      secondHalfStarted: false,
+      fullTimeReached: false,
+    },
   };
   const eventsToDelete = useAppData.getState().events.filter((e) => e.matchId === match.id);
   useAppData.setState((s) => ({

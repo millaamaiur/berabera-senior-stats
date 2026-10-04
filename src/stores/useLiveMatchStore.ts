@@ -10,6 +10,7 @@ import type {
   SimpleFieldEventType,
 } from '../domain/types';
 import { HALFTIME_SECONDS } from '../domain/types';
+import { elapsedAt, nextPeriodEnd } from '../domain/clock';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { useAppData } from './useAppData';
 import { useToast } from './useToast';
@@ -32,7 +33,7 @@ interface LiveMatchState {
 
   startClock: () => Promise<void>;
   pauseClock: () => Promise<void>;
-  checkHalftime: () => Promise<void>;
+  checkPeriodEnd: () => Promise<void>;
   getElapsedSeconds: () => number;
   updateCalledPlayers: (calledPlayerIds: string[]) => Promise<void>;
   updateDate: (date: string) => Promise<void>;
@@ -107,11 +108,7 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
 
   getElapsedSeconds: () => {
     const { match } = get();
-    if (!match) return 0;
-    if (match.clock.running && match.clock.lastStartedAt) {
-      return match.clock.elapsedSeconds + (Date.now() - match.clock.lastStartedAt) / 1000;
-    }
-    return match.clock.elapsedSeconds;
+    return match ? elapsedAt(match.clock, Date.now()) : 0;
   },
 
   startClock: async () => {
@@ -143,23 +140,33 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     await persistMatch(updated);
   },
 
-  /** Auto-pauses the clock the moment it crosses the 30-minute mark, once per match. */
-  checkHalftime: async () => {
+  /**
+   * Auto-pauses the clock the moment it reaches 30:00, and again at 60:00 — once
+   * each per match. Reaching 60:00 only stops the clock: the match stays live so
+   * the last seconds' plays can still be recorded before pressing "Finalizar".
+   */
+  checkPeriodEnd: async () => {
     const { match, getElapsedSeconds } = get();
-    if (!match || !match.clock.running || match.clock.halftimeReached) return;
-    if (getElapsedSeconds() < HALFTIME_SECONDS) return;
+    if (!match || !match.clock.running) return;
+    const end = nextPeriodEnd(match.clock);
+    if (end === null || getElapsedSeconds() < end) return;
+    const isHalftime = end === HALFTIME_SECONDS;
     const updated: Match = {
       ...match,
       clock: {
         ...match.clock,
-        elapsedSeconds: HALFTIME_SECONDS,
+        elapsedSeconds: end,
         running: false,
         lastStartedAt: null,
-        halftimeReached: true,
+        ...(isHalftime ? { halftimeReached: true } : { fullTimeReached: true }),
       },
     };
     set({ match: updated });
     await persistMatch(updated);
+    if (!isHalftime) {
+      useToast.getState().show('Fin del tiempo · anota lo que falte y pulsa Finalizar');
+      vibrate(HAPTIC.goal);
+    }
   },
 
   updateCalledPlayers: async (calledPlayerIds: string[]) => {

@@ -211,6 +211,21 @@ export function computeTeamZoneStats(events: MatchEvent[], kind: 'shot' | 'gk_sh
   return zones;
 }
 
+/**
+ * Shots of the given kind that missed the goal frame entirely ("Fuera") — they
+ * have no zone, so the 3x3 maps above can't place them. Pass a playerId for one
+ * player, or omit it for the whole team.
+ */
+export function computeOutsideShots(events: MatchEvent[], kind: 'shot' | 'gk_shot', playerId?: string): number {
+  let count = 0;
+  for (const e of events) {
+    if (e.eventType !== kind) continue;
+    if (playerId !== undefined && e.playerId !== playerId) continue;
+    if (e.eventData.zone === undefined) count++;
+  }
+  return count;
+}
+
 export interface TeamMatchStats {
   /** Open play + penalties combined. */
   shots: number;

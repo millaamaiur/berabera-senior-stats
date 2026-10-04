@@ -29,10 +29,19 @@ export interface MatchClock {
   halftimeReached: boolean;
   /** True once "Iniciar segunda parte" has been pressed — the halftime prompt won't show again. */
   secondHalfStarted: boolean;
+  /**
+   * True once the clock has auto-paused at 60:00. The match stays live (so the
+   * last seconds' plays can still be recorded) until "Finalizar" is pressed.
+   * Absent on matches saved before this existed.
+   */
+  fullTimeReached?: boolean;
 }
 
 /** Elapsed seconds at which the first half ends and the clock auto-pauses. */
 export const HALFTIME_SECONDS = 30 * 60;
+
+/** Elapsed seconds at which regulation time ends and the clock auto-pauses — without finishing the match. */
+export const FULLTIME_SECONDS = 60 * 60;
 
 export interface Match {
   id: string;

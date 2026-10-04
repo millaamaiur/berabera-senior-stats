@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { useAppData, activeSeason } from '../stores/useAppData';
 import {
   computeMatchScore,
+  computeOutsideShots,
   computeTeamMatchStats,
   computeTeamSeasonStats,
   computeTeamZoneStats,
   matchOutcome,
 } from '../stats/matchStats';
 import { ClubLogo } from '../components/ClubLogo';
+import { ZoneMap } from '../components/ZoneMap';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
@@ -77,8 +79,8 @@ export function Home() {
 
   const scoredZones = useMemo(() => computeTeamZoneStats(seasonEvents, 'shot'), [seasonEvents]);
   const concededZones = useMemo(() => computeTeamZoneStats(seasonEvents, 'gk_shot'), [seasonEvents]);
-  const maxScoredShots = Math.max(1, ...scoredZones.map((z) => z.shots));
-  const maxConcededShots = Math.max(1, ...concededZones.map((z) => z.shots));
+  const scoredOutside = useMemo(() => computeOutsideShots(seasonEvents, 'shot'), [seasonEvents]);
+  const concededOutside = useMemo(() => computeOutsideShots(seasonEvents, 'gk_shot'), [seasonEvents]);
 
   const nextMatch = useMemo(() => {
     return [...matches]
@@ -231,43 +233,20 @@ export function Home() {
         </section>
       )}
 
-      {(scoredZones.some((z) => z.shots > 0) || concededZones.some((z) => z.shots > 0)) && (
+      {(scoredZones.some((z) => z.shots > 0) ||
+        concededZones.some((z) => z.shots > 0) ||
+        scoredOutside > 0 ||
+        concededOutside > 0) && (
         <section>
           <h2 className="mb-3 text-lg font-bold text-white">Zonas de gol de la temporada</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-2 text-xs text-slate-500">Goles marcados</p>
-              <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
-                {scoredZones.map((z) => (
-                  <div
-                    key={z.zone}
-                    className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
-                    style={{ backgroundColor: `rgba(37, 99, 235, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxScoredShots) : 0})` }}
-                  >
-                    <p className="text-xs text-slate-300">Zona {z.zone}</p>
-                    <p className="font-bold">
-                      {z.goals}/{z.shots}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <ZoneMap zones={scoredZones} outside={scoredOutside} rgb="37, 99, 235" />
             </div>
             <div>
               <p className="mb-2 text-xs text-slate-500">Goles encajados</p>
-              <div className="mx-auto grid w-full max-w-xs grid-cols-3 gap-2">
-                {concededZones.map((z) => (
-                  <div
-                    key={z.zone}
-                    className="rounded-xl p-2 text-center text-white ring-1 ring-white/10"
-                    style={{ backgroundColor: `rgba(244, 63, 94, ${z.shots > 0 ? 0.18 + 0.62 * (z.shots / maxConcededShots) : 0})` }}
-                  >
-                    <p className="text-xs text-slate-300">Zona {z.zone}</p>
-                    <p className="font-bold">
-                      {z.goals}/{z.shots}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <ZoneMap zones={concededZones} outside={concededOutside} rgb="244, 63, 94" />
             </div>
           </div>
         </section>
