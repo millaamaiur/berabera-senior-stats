@@ -108,7 +108,6 @@ export type MatchEvent =
   | (BaseEvent & { eventType: 'assist' })
   | (BaseEvent & { eventType: 'turnover' })
   | (BaseEvent & { eventType: 'recovery' })
-  | (BaseEvent & { eventType: 'steps' })
   | (BaseEvent & { eventType: 'card_yellow' })
   | (BaseEvent & { eventType: 'card_red' })
   | (BaseEvent & { eventType: 'card_blue' })
@@ -117,12 +116,11 @@ export type MatchEvent =
 
 export type EventType = MatchEvent['eventType'];
 
-/** Simple field-player events that carry no extra data beyond player/time. */
+/** Simple events that carry no extra data beyond player/time. */
 export type SimpleFieldEventType =
   | 'assist'
   | 'turnover'
   | 'recovery'
-  | 'steps'
   | 'card_yellow'
   | 'card_red'
   | 'card_blue'

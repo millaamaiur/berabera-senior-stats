@@ -22,7 +22,18 @@ export function MatchRosterTable({ roster, matchEvents, elapsedSeconds, compact 
         const def = computeDefensiveOnCourtStats(matchEvents, p.id);
         const isGk = p.position === 'goalkeeper';
         const gk = isGk ? computeGoalkeeperStats(matchEvents, p.id) : null;
-        const fs = !isGk ? computeFieldPlayerStats(matchEvents, p.id) : null;
+        const fs = computeFieldPlayerStats(matchEvents, p.id);
+        // A keeper's own goals/turnovers/recoveries are rare, so only mention them when there are any.
+        const gkLine = gk
+          ? [
+              `${gk.saves}/${gk.shotsFaced} paradas`,
+              fs.goals > 0 && `${fs.goals} goles`,
+              fs.turnovers > 0 && `${fs.turnovers} pérd.`,
+              fs.recoveries > 0 && `${fs.recoveries} recup.`,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          : null;
         return (
           <div
             key={p.id}
@@ -34,9 +45,7 @@ export function MatchRosterTable({ roster, matchEvents, elapsedSeconds, compact 
                 <p className={`truncate font-bold text-amber-400 ${compact ? 'text-sm' : ''}`}>{p.name}</p>
                 <p className={`truncate text-slate-400 ${compact ? 'text-[0.65rem]' : 'text-xs'}`}>
                   {formatClock(minutes)} ·{' '}
-                  {gk
-                    ? `${gk.saves}/${gk.shotsFaced} paradas`
-                    : `${fs!.goals}/${fs!.shots} goles · ${fs!.turnovers} pérd. · ${fs!.recoveries} recup.`}
+                  {gkLine ?? `${fs.goals}/${fs.shots} goles · ${fs.turnovers} pérd. · ${fs.recoveries} recup.`}
                 </p>
               </div>
             </Link>

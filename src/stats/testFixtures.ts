@@ -53,7 +53,7 @@ export function courtChange(playerId: string, timestamp: number, action: 'enter'
   } as MatchEvent;
 }
 
-type SimpleType = 'turnover' | 'recovery' | 'steps' | 'card_yellow' | 'card_red' | 'card_blue' | 'exclusion_2min';
+type SimpleType = 'turnover' | 'recovery' | 'card_yellow' | 'card_red' | 'card_blue' | 'exclusion_2min';
 
 export function simple(eventType: SimpleType, playerId: string, timestamp: number): MatchEvent {
   return { id: makeId(), matchId: 'm1', playerId, timestamp, eventType } as MatchEvent;

@@ -22,7 +22,8 @@ interface PlayerStatsSummaryProps {
 
 export function PlayerStatsSummary({ player, events, minutesSeconds, defense, matchesPlayed }: PlayerStatsSummaryProps) {
   const isGoalkeeper = player.position === 'goalkeeper';
-  const fieldStats = !isGoalkeeper ? computeFieldPlayerStats(events, player.id) : null;
+  const ownStats = computeFieldPlayerStats(events, player.id);
+  const fieldStats = !isGoalkeeper ? ownStats : null;
   const gkStats = isGoalkeeper ? computeGoalkeeperStats(events, player.id) : null;
   const shotKind = isGoalkeeper ? 'gk_shot' : 'shot';
   const zoneStats = computeZoneStats(events, player.id, shotKind);
@@ -47,7 +48,6 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
             )}
             <StatCard label="Pérdidas" value={fieldStats.turnovers} />
             <StatCard label="Recup." value={fieldStats.recoveries} />
-            <StatCard label="Pasos" value={fieldStats.steps} />
             <StatCard label="Amarillas" value={fieldStats.yellowCards} />
             <StatCard label="Rojas" value={fieldStats.redCards} />
             <StatCard label="Azules" value={fieldStats.blueCards} />
@@ -64,6 +64,9 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
             <StatCard label="Penaltis parados" value={gkStats.penaltiesSaved} />
             <StatCard label="Penaltis gol" value={gkStats.penaltiesConceded} />
             <StatCard label="% Parada penalti" value={`${gkStats.penaltySavePct}%`} />
+            {ownStats.goals > 0 && <StatCard label="Goles" value={ownStats.goals} />}
+            <StatCard label="Pérdidas" value={ownStats.turnovers} />
+            <StatCard label="Recup." value={ownStats.recoveries} />
           </>
         )}
         <StatCard label="GC en pista" value={defense.goalsAgainst} />

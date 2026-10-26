@@ -122,6 +122,24 @@ describe('computeFieldPlayerStats', () => {
     expect(stats.exclusions).toBe(1);
   });
 
+  it('works for a goalkeeper\'s own goals/turnovers/recoveries, without touching their shots-faced numbers', () => {
+    const events: MatchEvent[] = [
+      shot('gk1', 1, 'goal', { zone: 5 }), // the keeper scores
+      simple('turnover', 'gk1', 2),
+      simple('recovery', 'gk1', 3),
+      gkShot('gk1', 4, 'save', 5),
+    ];
+    const own = computeFieldPlayerStats(events, 'gk1');
+    expect(own.goals).toBe(1);
+    expect(own.turnovers).toBe(1);
+    expect(own.recoveries).toBe(1);
+
+    const gk = computeGoalkeeperStats(events, 'gk1');
+    expect(gk.shotsFaced).toBe(1);
+    expect(gk.goalsConceded).toBe(0);
+    expect(computeMatchScore(events)).toEqual({ goalsFor: 1, goalsAgainst: 0 });
+  });
+
   it('returns zeroes instead of dividing by zero when the player never shot', () => {
     const stats = computeFieldPlayerStats([], 'p1');
     expect(stats.shotPct).toBe(0);

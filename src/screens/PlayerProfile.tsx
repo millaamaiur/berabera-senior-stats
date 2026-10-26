@@ -85,13 +85,13 @@ export function PlayerProfile() {
             const { goalsFor, goalsAgainst } = computeMatchScore(matchEvents);
             const outcome = matchOutcome(goalsFor, goalsAgainst);
             const minutes = computeMinutesPlayed(matchEvents, player.id, m.clock.elapsedSeconds);
+            const own = computeFieldPlayerStats(matchEvents, player.id);
             let headline: string;
             if (isGoalkeeper) {
               const gk = computeGoalkeeperStats(matchEvents, player.id);
-              headline = `${gk.saves}/${gk.shotsFaced} paradas`;
+              headline = `${gk.saves}/${gk.shotsFaced} paradas${own.goals > 0 ? ` · ${own.goals} goles` : ''}`;
             } else {
-              const field = computeFieldPlayerStats(matchEvents, player.id);
-              headline = `${field.goals}/${field.shots} goles`;
+              headline = `${own.goals}/${own.shots} goles`;
             }
             return (
               <Link

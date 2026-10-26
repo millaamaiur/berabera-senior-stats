@@ -142,7 +142,10 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
                 {!(target.event.eventType === 'gk_shot' && draftResult === 'miss') && (
                   <>
                     <p className="text-sm font-semibold text-slate-300">Zona (toca para guardar)</p>
-                    <ShotGrid3x3 onSelectZone={handleZoneClick} allowOutside={target.event.eventType === 'shot'} />
+                    <ShotGrid3x3
+                      onSelectZone={handleZoneClick}
+                      allowOutside={target.event.eventType === 'shot' && draftResult === 'miss'}
+                    />
                   </>
                 )}
               </div>

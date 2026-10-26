@@ -67,13 +67,13 @@ export interface FieldPlayerStats {
   penaltyScorePct: number;
   turnovers: number;
   recoveries: number;
-  steps: number;
   yellowCards: number;
   redCards: number;
   blueCards: number;
   exclusions: number;
 }
 
+/** A player's own actions. Despite the name it works for goalkeepers too — they can score, lose and win the ball. */
 export function computeFieldPlayerStats(events: MatchEvent[], playerId: string): FieldPlayerStats {
   const own = events.filter((e) => e.playerId === playerId);
   const shots = own.filter((e): e is Extract<MatchEvent, { eventType: 'shot' }> => e.eventType === 'shot');
@@ -91,7 +91,6 @@ export function computeFieldPlayerStats(events: MatchEvent[], playerId: string):
     penaltyScorePct: penalties.length ? Math.round((penaltiesScored / penalties.length) * 100) : 0,
     turnovers: own.filter((e) => e.eventType === 'turnover').length,
     recoveries: own.filter((e) => e.eventType === 'recovery').length,
-    steps: own.filter((e) => e.eventType === 'steps').length,
     yellowCards: own.filter((e) => e.eventType === 'card_yellow').length,
     redCards: own.filter((e) => e.eventType === 'card_red').length,
     blueCards: own.filter((e) => e.eventType === 'card_blue').length,
@@ -233,7 +232,6 @@ export interface TeamMatchStats {
   shotPct: number;
   turnovers: number;
   recoveries: number;
-  steps: number;
   yellowCards: number;
   redCards: number;
   blueCards: number;
@@ -259,7 +257,6 @@ export function computeTeamMatchStats(events: MatchEvent[]): TeamMatchStats {
     shotPct: shots.length ? Math.round((goals / shots.length) * 100) : 0,
     turnovers: events.filter((e) => e.eventType === 'turnover').length,
     recoveries: events.filter((e) => e.eventType === 'recovery').length,
-    steps: events.filter((e) => e.eventType === 'steps').length,
     yellowCards: events.filter((e) => e.eventType === 'card_yellow').length,
     redCards: events.filter((e) => e.eventType === 'card_red').length,
     blueCards: events.filter((e) => e.eventType === 'card_blue').length,

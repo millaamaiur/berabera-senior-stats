@@ -7,10 +7,9 @@ interface ActionPanelProps {
   player: Player;
 }
 
-const FIELD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
+const POSSESSION_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
   { type: 'turnover', label: 'Pérdida' },
   { type: 'recovery', label: 'Recuperación' },
-  { type: 'steps', label: 'Pasos' },
 ];
 
 const CARD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
@@ -102,7 +101,7 @@ export function ActionPanel({ player }: ActionPanelProps) {
     return (
       <div className="flex flex-col items-center gap-3">
         <p className="text-lg font-semibold text-white">¿Zona de portería?</p>
-        <ShotGrid3x3 onSelectZone={chooseZone} allowOutside={step.flow.kind === 'field'} />
+        <ShotGrid3x3 onSelectZone={chooseZone} allowOutside={step.flow.kind === 'field' && step.result === 'miss'} />
         <button type="button" onClick={() => setStep(null)} className="text-sm text-slate-400 underline">
           Cancelar
         </button>
@@ -132,12 +131,20 @@ export function ActionPanel({ player }: ActionPanelProps) {
         <>
           <ActionButton label="Lanzamiento" onClick={() => startShot({ kind: 'gk', context: 'open_play' })} />
           <ActionButton label="Penalti" onClick={() => startShot({ kind: 'gk', context: 'penalty' })} />
+          {/* The keeper's own goal is a regular `shot` (it counts for us), so skip straight to its zone. */}
+          <ActionButton
+            label="Marca gol"
+            onClick={() => setStep({ kind: 'shot', flow: { kind: 'field', context: 'open_play' }, result: 'goal' })}
+          />
+          {POSSESSION_ACTIONS.map((a) => (
+            <ActionButton key={a.type} label={a.label} onClick={() => handleSimple(a.type)} />
+          ))}
         </>
       ) : (
         <>
           <ActionButton label="Lanzamiento" onClick={() => startShot({ kind: 'field', context: 'open_play' })} />
           <ActionButton label="Penalti" onClick={() => startShot({ kind: 'field', context: 'penalty' })} />
-          {FIELD_ACTIONS.map((a) => (
+          {POSSESSION_ACTIONS.map((a) => (
             <ActionButton key={a.type} label={a.label} onClick={() => handleSimple(a.type)} />
           ))}
           <ActionButton label="Amonestación" onClick={() => setStep({ kind: 'card' })} />
