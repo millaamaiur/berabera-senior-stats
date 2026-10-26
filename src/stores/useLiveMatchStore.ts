@@ -142,8 +142,9 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
 
   /**
    * Auto-pauses the clock the moment it reaches 30:00, and again at 60:00 — once
-   * each per match. Reaching 60:00 only stops the clock: the match stays live so
-   * the last seconds' plays can still be recorded before pressing "Finalizar".
+   * each per match. Either one only stops the clock: the scorer stays on the
+   * recording screen so the last seconds' plays can still be noted before
+   * starting the second half / pressing "Finalizar".
    */
   checkPeriodEnd: async () => {
     const { match, getElapsedSeconds } = get();
@@ -163,10 +164,10 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     };
     set({ match: updated });
     await persistMatch(updated);
-    if (!isHalftime) {
-      useToast.getState().show('Fin del tiempo · anota lo que falte y pulsa Finalizar');
-      vibrate(HAPTIC.goal);
-    }
+    useToast
+      .getState()
+      .show(isHalftime ? 'Descanso · anota lo que falte antes de la segunda parte' : 'Fin del tiempo · anota lo que falte y pulsa Finalizar');
+    vibrate(HAPTIC.goal);
   },
 
   updateCalledPlayers: async (calledPlayerIds: string[]) => {

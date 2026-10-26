@@ -53,7 +53,7 @@ export function AnotarSession() {
   const [showSquad, setShowSquad] = useState(false);
   const [showEditDate, setShowEditDate] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventEditorTarget | null>(null);
-  const [dismissedHalftimeStats, setDismissedHalftimeStats] = useState(false);
+  const [showHalftimeStats, setShowHalftimeStats] = useState(false);
 
   useEffect(() => {
     if (matchId) loadMatch(matchId);
@@ -73,12 +73,6 @@ export function AnotarSession() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.clock.running]);
-
-  // Ready to show the halftime summary again next time (e.g. after cancelling
-  // the match) as soon as we're no longer sitting at a reached-but-not-yet-passed halftime.
-  useEffect(() => {
-    if (!match?.clock.halftimeReached) setDismissedHalftimeStats(false);
-  }, [match?.clock.halftimeReached]);
 
   if (!unlocked) {
     return <PinLock message="Introduce el PIN para anotar este partido" />;
@@ -111,7 +105,9 @@ export function AnotarSession() {
       ? 'Completa la alineación (6 + portero) para iniciar'
       : 'Solo puedes iniciar el partido el día programado';
   const showSecondHalfPrompt = match.clock.halftimeReached && !match.clock.secondHalfStarted && !match.clock.running;
-  const showHalftimeScreen = showSecondHalfPrompt && !dismissedHalftimeStats;
+  // Opt-in rather than shown automatically at 30:00: taking over the screen the
+  // moment the clock paused threw away any play still being recorded.
+  const showHalftimeScreen = showSecondHalfPrompt && showHalftimeStats;
   const atFullTime = match.clock.fullTimeReached === true && !match.clock.running;
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
@@ -158,8 +154,8 @@ export function AnotarSession() {
           <p className="text-3xl font-black text-white">
             {goalsFor} - {goalsAgainst}
           </p>
-          <button type="button" onClick={() => setDismissedHalftimeStats(true)} className={btnClass('amber')}>
-            Pasar a segunda parte
+          <button type="button" onClick={() => setShowHalftimeStats(false)} className={btnClass('amber')}>
+            Volver a anotar
           </button>
         </div>
         <p className="text-sm text-slate-400">Estadísticas del partido hasta el descanso:</p>
@@ -236,6 +232,11 @@ export function AnotarSession() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {showSecondHalfPrompt && (
+            <button type="button" onClick={() => setShowHalftimeStats(true)} className={btnClass('slate')}>
+              Stats descanso
+            </button>
+          )}
           <button type="button" onClick={() => setShowSquad(true)} className={btnClass('slate')}>
             Convocatoria
           </button>
