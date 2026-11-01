@@ -4,6 +4,7 @@ import { useAppData } from '../stores/useAppData';
 import { computeDefensiveOnCourtStats, computeMatchScore, matchOutcome } from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { formatDate } from '../utils/time';
+import { formatScore } from '../utils/score';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { PlayerStatsSummary } from '../components/PlayerStatsSummary';
 import { CompactTimeline } from '../components/CompactTimeline';
@@ -46,9 +47,7 @@ export function PlayerMatchStats() {
               vs {match.opponent} · {formatDate(match.date)} · {match.competition}
             </p>
             <p className="mt-1 flex items-center gap-2">
-              <span className="text-lg font-black text-white">
-                {goalsFor} - {goalsAgainst}
-              </span>
+              <span className="text-lg font-black text-white">{formatScore(match.isHome, goalsFor, goalsAgainst)}</span>
               {match.status === 'finished' ? (
                 <Badge color={outcome === 'win' ? 'emerald' : outcome === 'loss' ? 'rose' : 'slate'}>
                   {outcome === 'win' ? 'Victoria' : outcome === 'loss' ? 'Derrota' : 'Empate'}

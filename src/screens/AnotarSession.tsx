@@ -6,6 +6,7 @@ import { finishMatch, cancelMatch } from '../stores/matchActions';
 import { computeMatchScore } from '../stats/matchStats';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { formatClock, formatDate, daysUntil } from '../utils/time';
+import { formatScore } from '../utils/score';
 import { LineupPicker } from '../components/LineupPicker';
 import { OnCourtRoster } from '../components/OnCourtRoster';
 import { SubstitutionModal } from '../components/SubstitutionModal';
@@ -151,9 +152,7 @@ export function AnotarSession() {
             <p className="text-xs font-bold text-amber-400">DESCANSO</p>
             <p className="text-lg font-bold text-white">vs {match.opponent}</p>
           </div>
-          <p className="text-3xl font-black text-white">
-            {goalsFor} - {goalsAgainst}
-          </p>
+          <p className="text-3xl font-black text-white">{formatScore(match.isHome, goalsFor, goalsAgainst)}</p>
           <button type="button" onClick={() => setShowHalftimeStats(false)} className={btnClass('amber')}>
             Volver a anotar
           </button>
@@ -197,9 +196,7 @@ export function AnotarSession() {
             )}
           </div>
         </div>
-        <p className="text-2xl font-black text-white sm:text-3xl">
-          {goalsFor} - {goalsAgainst}
-        </p>
+        <p className="text-2xl font-black text-white sm:text-3xl">{formatScore(match.isHome, goalsFor, goalsAgainst)}</p>
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-center">
             <span

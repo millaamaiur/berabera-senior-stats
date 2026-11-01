@@ -4,6 +4,7 @@ import { useAppData } from '../stores/useAppData';
 import { computeMatchScore, matchOutcome } from '../stats/matchStats';
 import { deleteMatch } from '../stores/matchActions';
 import { formatDate, scheduleLabel } from '../utils/time';
+import { formatScore } from '../utils/score';
 import type { Match } from '../domain/types';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { Badge } from '../components/Badge';
@@ -130,9 +131,7 @@ export function Matches() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-xl font-extrabold">
-                    {goalsFor} - {goalsAgainst}
-                  </span>
+                  <span className="text-xl font-extrabold">{formatScore(match.isHome, goalsFor, goalsAgainst)}</span>
                   {match.status === 'finished' ? (
                     <Badge color={OUTCOME_COLOR[outcome]}>{OUTCOME_LABEL[outcome]}</Badge>
                   ) : match.clock.hasStartedOnce ? (

@@ -17,6 +17,7 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import { closeSeasonAndStartNext } from '../stores/seasonActions';
 import { useAuthStore } from '../stores/useAuthStore';
 import { daysUntil, formatDate, scheduleLabel } from '../utils/time';
+import { formatScore } from '../utils/score';
 
 const OUTCOME_LABEL_PLURAL = { win: 'victorias', loss: 'derrotas', draw: 'empates' } as const;
 
@@ -159,7 +160,7 @@ export function Home() {
                 <Link
                   key={match.id}
                   to={`/partidos/${match.id}`}
-                  title={`vs ${match.opponent} · ${goalsFor}-${goalsAgainst}`}
+                  title={`vs ${match.opponent} · ${formatScore(match.isHome, goalsFor, goalsAgainst)}`}
                   className={[
                     'flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold text-white transition-transform touch-manipulation active:scale-90',
                     outcome === 'win' ? 'bg-emerald-500' : outcome === 'loss' ? 'bg-rose-500' : 'bg-slate-500',
@@ -220,7 +221,7 @@ export function Home() {
                 <p className="text-xs uppercase tracking-wide text-emerald-400">Mayor victoria</p>
                 <p className="mt-0.5 font-bold text-white">vs {biggestWin.match.opponent}</p>
                 <p className="text-xs text-slate-400">
-                  {biggestWin.goalsFor}-{biggestWin.goalsAgainst}
+                  {formatScore(biggestWin.match.isHome, biggestWin.goalsFor, biggestWin.goalsAgainst)}
                 </p>
               </Link>
             ) : (

@@ -10,6 +10,7 @@ import {
 } from '../stats/matchStats';
 import { computeMinutesPlayed } from '../stats/onCourt';
 import { formatClock, formatDate } from '../utils/time';
+import { formatScore } from '../utils/score';
 import { PlayerAvatar } from '../components/PlayerAvatar';
 import { PlayerStatsSummary } from '../components/PlayerStatsSummary';
 import { Badge } from '../components/Badge';
@@ -108,9 +109,7 @@ export function PlayerProfile() {
                   </p>
                 </div>
                 <span className="flex shrink-0 items-center gap-3">
-                  <span className="text-sm text-slate-400">
-                    {goalsFor} - {goalsAgainst}
-                  </span>
+                  <span className="text-sm text-slate-400">{formatScore(m.isHome, goalsFor, goalsAgainst)}</span>
                   {m.status === 'finished' ? (
                     <Badge color={outcome === 'win' ? 'emerald' : outcome === 'loss' ? 'rose' : 'slate'}>
                       {outcome === 'win' ? 'V' : outcome === 'loss' ? 'D' : 'E'}

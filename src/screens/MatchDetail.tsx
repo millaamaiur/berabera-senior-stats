@@ -12,6 +12,7 @@ import {
 import { ZoneMap } from '../components/ZoneMap';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { formatDate } from '../utils/time';
+import { formatScore } from '../utils/score';
 import { MatchRosterTable } from '../components/MatchRosterTable';
 import { CompactTimeline } from '../components/CompactTimeline';
 import { EditSquadModal } from '../components/EditSquadModal';
@@ -82,12 +83,14 @@ export function MatchDetail() {
     <div className="flex flex-col gap-6 p-4 pt-6 sm:p-6">
       <div className="flex flex-col gap-4 rounded-3xl bg-white/5 p-4 ring-1 ring-white/10 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">BERA BERA vs {match.opponent}</h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+            {match.isHome ? `BERA BERA vs ${match.opponent}` : `${match.opponent} vs BERA BERA`}
+          </h2>
           <p className="text-slate-400">
             {formatDate(match.date)} · {match.competition} · {match.isHome ? 'Casa' : 'Fuera'}
           </p>
           <p className="mt-3 text-4xl font-black text-white">
-            {goalsFor} - {goalsAgainst}
+            {formatScore(match.isHome, goalsFor, goalsAgainst)}
             <span className="ml-3 text-base font-semibold text-amber-400">
               {outcome === 'win' ? 'Victoria' : outcome === 'loss' ? 'Derrota' : 'Empate'}
             </span>
