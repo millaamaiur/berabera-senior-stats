@@ -21,7 +21,8 @@ const CARD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
 
 /** `counter`: a counterattack — ours for 'field', the rival's (shot at our keeper) for 'gk'. */
 type ShotFlow = { kind: 'field' | 'gk'; context: 'open_play' | 'penalty'; counter?: boolean };
-type ShotResult = 'goal' | 'miss' | 'save' | 'turnover';
+/** 'outside' is our own "Fuera": stored as a miss with no zone, but picked as its own option. */
+type ShotResult = 'goal' | 'miss' | 'save' | 'outside' | 'turnover';
 type Step = { kind: 'shot'; flow: ShotFlow; result?: ShotResult } | { kind: 'card' } | null;
 
 export function ActionPanel({ player }: ActionPanelProps) {
@@ -50,11 +51,15 @@ export function ActionPanel({ player }: ActionPanelProps) {
   async function chooseResult(result: ShotResult) {
     if (!step || step.kind !== 'shot') return;
     const { flow } = step;
-    // A gk "Fuera" never reaches the goal frame at all, so there's no zone to
-    // pick — unlike a field "Fallo", which might still be on target (saved)
-    // and needs one. Record it immediately instead of moving to that step.
+    // A "Fuera" never reaches the goal frame, so there's no zone to pick —
+    // unlike "Fallo" (on target, saved). Record it immediately instead.
     if (flow.kind === 'gk' && result === 'miss') {
       await recordGkShot(player.id, { result: 'miss', context: flow.context, ...counterFlag(flow) });
+      finishAndReset();
+      return;
+    }
+    if (flow.kind === 'field' && result === 'outside') {
+      await recordShot(player.id, { result: 'miss', context: flow.context, ...counterFlag(flow) });
       finishAndReset();
       return;
     }
@@ -67,17 +72,12 @@ export function ActionPanel({ player }: ActionPanelProps) {
     setStep({ ...step, result });
   }
 
-  async function chooseZone(zone: Zone | null) {
+  async function chooseZone(zone: Zone) {
     if (!step || step.kind !== 'shot' || !step.result) return;
     const { flow } = step;
     if (flow.kind === 'field') {
-      await recordShot(player.id, {
-        result: step.result as 'goal' | 'miss',
-        zone: zone ?? undefined,
-        context: flow.context,
-        ...counterFlag(flow),
-      });
-    } else if (zone !== null) {
+      await recordShot(player.id, { result: step.result as 'goal' | 'miss', zone, context: flow.context, ...counterFlag(flow) });
+    } else {
       await recordGkShot(player.id, { result: step.result as 'save' | 'goal', zone, context: flow.context, ...counterFlag(flow) });
     }
     finishAndReset();
@@ -86,9 +86,15 @@ export function ActionPanel({ player }: ActionPanelProps) {
   if (step?.kind === 'shot' && !step.result) {
     const { flow } = step;
     const options: ShotResult[] =
-      flow.kind === 'gk' ? ['save', 'goal', 'miss'] : flow.counter ? ['goal', 'miss', 'turnover'] : ['goal', 'miss'];
+      flow.kind === 'gk'
+        ? ['save', 'goal', 'miss']
+        : flow.counter
+          ? ['goal', 'miss', 'outside', 'turnover']
+          : ['goal', 'miss', 'outside'];
     const labels: Record<string, string> =
-      flow.kind === 'gk' ? { save: 'Parada', goal: 'Gol', miss: 'Fuera' } : { goal: 'Gol', miss: 'Fallo', turnover: 'Pérdida' };
+      flow.kind === 'gk'
+        ? { save: 'Parada', goal: 'Gol', miss: 'Fuera' }
+        : { goal: 'Gol', miss: 'Fallo', outside: 'Fuera', turnover: 'Pérdida' };
     return (
       <div className="flex flex-col items-center gap-4">
         <p className="text-lg font-semibold text-white">{flow.counter ? '¿Cómo acaba el contraataque?' : '¿Resultado?'}</p>
@@ -115,7 +121,7 @@ export function ActionPanel({ player }: ActionPanelProps) {
     return (
       <div className="flex flex-col items-center gap-3">
         <p className="text-lg font-semibold text-white">¿Zona de portería?</p>
-        <ShotGrid3x3 onSelectZone={chooseZone} allowOutside={step.flow.kind === 'field' && step.result === 'miss'} />
+        <ShotGrid3x3 onSelectZone={chooseZone} />
         <button type="button" onClick={() => setStep(null)} className="text-sm text-slate-400 underline">
           Cancelar
         </button>

@@ -31,18 +31,21 @@ interface EventEditorModalProps {
   onClose: () => void;
 }
 
-const RESULT_LABELS: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada' };
+// 'outside' is our own "Fuera" — stored as a miss with no zone, but its own option here, as when recording live.
+const RESULT_LABELS: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada', outside: 'Fuera' };
 
 /** Edit the result/zone of a shot, mark/unmark a counterattack, or delete any single event / substitution pair. */
 export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose }: EventEditorModalProps) {
   const { ask, dialog } = useConfirmDialog();
   const initialEvent = target.kind === 'single' ? target.event : null;
   const isShot = initialEvent?.eventType === 'shot' || initialEvent?.eventType === 'gk_shot';
-  const [draftResult, setDraftResult] = useState<string | null>(
-    initialEvent && (initialEvent.eventType === 'shot' || initialEvent.eventType === 'gk_shot')
-      ? initialEvent.eventData.result
-      : null
-  );
+  const [draftResult, setDraftResult] = useState<string | null>(() => {
+    if (initialEvent?.eventType === 'shot') {
+      const { result, zone } = initialEvent.eventData;
+      return result === 'miss' && zone === undefined ? 'outside' : result;
+    }
+    return initialEvent?.eventType === 'gk_shot' ? initialEvent.eventData.result : null;
+  });
 
   async function handleDeleteSingle(id: string, label: string) {
     if (await ask({ title: `¿Eliminar "${label}"?`, danger: true, confirmLabel: 'Eliminar' })) {
@@ -60,16 +63,13 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
     }
   }
 
-  async function handleZoneClick(zone: Zone | null) {
+  async function handleZoneClick(zone: Zone) {
     if (target.kind !== 'single' || !draftResult) return;
     const event = target.event;
     if (event.eventType === 'shot') {
-      await onUpdateEvent({
-        ...event,
-        eventData: { ...event.eventData, result: draftResult as 'goal' | 'miss', zone: zone ?? undefined },
-      });
+      await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'goal' | 'miss', zone } });
       onClose();
-    } else if (event.eventType === 'gk_shot' && zone !== null) {
+    } else if (event.eventType === 'gk_shot') {
       await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'save' | 'goal', zone } });
       onClose();
     }
@@ -92,11 +92,17 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
     onClose();
   }
 
-  async function chooseGkResult(result: string) {
-    if (target.kind !== 'single' || target.event.eventType !== 'gk_shot') return;
-    if (result === 'miss') {
-      // "Fuera" has no zone to pick, so save it right away instead of waiting for a zone tap.
-      await onUpdateEvent({ ...target.event, eventData: { ...target.event.eventData, result: 'miss', zone: undefined } });
+  /** "Fuera" has no zone to pick, so it saves right away instead of waiting for a zone tap. */
+  async function chooseResult(result: string) {
+    if (target.kind !== 'single') return;
+    const event = target.event;
+    if (event.eventType === 'gk_shot' && result === 'miss') {
+      await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: 'miss', zone: undefined } });
+      onClose();
+      return;
+    }
+    if (event.eventType === 'shot' && result === 'outside') {
+      await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: 'miss', zone: undefined } });
       onClose();
       return;
     }
@@ -155,11 +161,11 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
               <div className="flex flex-col items-center gap-3">
                 <p className="text-sm font-semibold text-slate-300">Resultado</p>
                 <div className="flex gap-2">
-                  {(target.event.eventType === 'shot' ? ['goal', 'miss'] : ['save', 'goal', 'miss']).map((opt) => (
+                  {(target.event.eventType === 'shot' ? ['goal', 'miss', 'outside'] : ['save', 'goal', 'miss']).map((opt) => (
                     <button
                       key={opt}
                       type="button"
-                      onClick={() => (target.event.eventType === 'gk_shot' ? chooseGkResult(opt) : setDraftResult(opt))}
+                      onClick={() => chooseResult(opt)}
                       className={[
                         'rounded-full px-4 py-2 font-bold ring-1 transition-transform touch-manipulation active:scale-95',
                         draftResult === opt ? 'bg-amber-500 text-slate-900 ring-amber-400' : 'bg-white/5 text-white ring-white/10',
@@ -169,13 +175,13 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
                     </button>
                   ))}
                 </div>
-                {!(target.event.eventType === 'gk_shot' && draftResult === 'miss') && (
+                {!(
+                  (target.event.eventType === 'gk_shot' && draftResult === 'miss') ||
+                  (target.event.eventType === 'shot' && draftResult === 'outside')
+                ) && (
                   <>
                     <p className="text-sm font-semibold text-slate-300">Zona (toca para guardar)</p>
-                    <ShotGrid3x3
-                      onSelectZone={handleZoneClick}
-                      allowOutside={target.event.eventType === 'shot' && draftResult === 'miss'}
-                    />
+                    <ShotGrid3x3 onSelectZone={handleZoneClick} />
                   </>
                 )}
               </div>
