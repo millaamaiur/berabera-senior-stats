@@ -40,29 +40,29 @@ create table events (
   "createdAt" bigint
 );
 
--- Cualquiera puede leer (ver estadísticas); solo una sesión con el PIN
--- desbloqueado (usuario autenticado) puede crear, editar o borrar.
+-- Todo es privado: solo una sesión con el PIN desbloqueado (usuario
+-- autenticado) puede ver, crear, editar o borrar.
 alter table players enable row level security;
 alter table seasons enable row level security;
 alter table matches enable row level security;
 alter table events enable row level security;
 
-create policy "public read players" on players for select using (true);
+create policy "auth read players" on players for select using (auth.role() = 'authenticated');
 create policy "auth insert players" on players for insert with check (auth.role() = 'authenticated');
 create policy "auth update players" on players for update using (auth.role() = 'authenticated');
 create policy "auth delete players" on players for delete using (auth.role() = 'authenticated');
 
-create policy "public read seasons" on seasons for select using (true);
+create policy "auth read seasons" on seasons for select using (auth.role() = 'authenticated');
 create policy "auth insert seasons" on seasons for insert with check (auth.role() = 'authenticated');
 create policy "auth update seasons" on seasons for update using (auth.role() = 'authenticated');
 create policy "auth delete seasons" on seasons for delete using (auth.role() = 'authenticated');
 
-create policy "public read matches" on matches for select using (true);
+create policy "auth read matches" on matches for select using (auth.role() = 'authenticated');
 create policy "auth insert matches" on matches for insert with check (auth.role() = 'authenticated');
 create policy "auth update matches" on matches for update using (auth.role() = 'authenticated');
 create policy "auth delete matches" on matches for delete using (auth.role() = 'authenticated');
 
-create policy "public read events" on events for select using (true);
+create policy "auth read events" on events for select using (auth.role() = 'authenticated');
 create policy "auth insert events" on events for insert with check (auth.role() = 'authenticated');
 create policy "auth update events" on events for update using (auth.role() = 'authenticated');
 create policy "auth delete events" on events for delete using (auth.role() = 'authenticated');

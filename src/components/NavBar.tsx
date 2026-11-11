@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import type { MouseEvent } from 'react';
 import type { ReactNode } from 'react';
 import { ClubLogo } from './ClubLogo';
@@ -63,15 +63,6 @@ function MoonIcon() {
   );
 }
 
-function UnlockIcon() {
-  return (
-    <svg {...ICON_PROPS} className="h-5 w-5">
-      <rect x="4" y="10" width="16" height="10" rx="2" />
-      <path d="M8 10V7a4 4 0 0 1 7.4-2.1" />
-    </svg>
-  );
-}
-
 function LockIcon() {
   return (
     <svg {...ICON_PROPS} className="h-5 w-5">
@@ -88,9 +79,7 @@ const TABS: { to: string; label: string; end?: boolean; icon: () => ReactNode }[
 ];
 
 export function NavBar() {
-  const unlocked = useAuthStore((s) => s.unlocked);
   const lock = useAuthStore((s) => s.lock);
-  const navigate = useNavigate();
   const pendingCount = useSyncStatus((s) => s.pendingCount);
   const failedCount = useSyncStatus((s) => s.failedCount);
   const theme = useTheme((s) => s.theme);
@@ -172,25 +161,20 @@ export function NavBar() {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
 
-        {unlocked ? (
-          <button
-            type="button"
-            onClick={() => lock()}
-            className="flex flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold text-emerald-400 touch-manipulation active:bg-white/5 sm:mt-auto sm:w-full sm:flex-none sm:py-4"
-          >
-            <UnlockIcon />
-            <span>Bloquear</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => navigate('/desbloquear')}
-            className="flex flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold text-slate-400 touch-manipulation active:bg-white/5 sm:mt-auto sm:w-full sm:flex-none sm:py-4"
-          >
-            <LockIcon />
-            <span>Anotar</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (matchRunning) {
+              useToast.getState().show('Pausa el partido para poder bloquear');
+              return;
+            }
+            lock();
+          }}
+          className="flex flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold text-emerald-400 touch-manipulation active:bg-white/5 sm:mt-auto sm:w-full sm:flex-none sm:py-4"
+        >
+          <LockIcon />
+          <span>Bloquear</span>
+        </button>
       </div>
     </nav>
   );

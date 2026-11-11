@@ -2,11 +2,10 @@ import { create } from 'zustand';
 import { supabase } from '../data/supabase/client';
 
 /**
- * There's no per-person login — everyone who can anotar shares one Supabase
- * Auth account, unlocked with a 4-digit PIN instead of a real password.
- * Viewing (matches, players, stats) never requires this at all; it's gated
- * purely by Supabase RLS letting anyone read but only an authenticated
- * session write.
+ * There's no per-person login — the coach unlocks one shared Supabase Auth
+ * account with a 4-digit PIN instead of a real password. The whole app is
+ * private: Supabase RLS only lets an authenticated session read or write
+ * anything, and the UI shows nothing but the PIN screen until then.
  */
 const SHARED_EMAIL = 'equipo@berabera-app.local';
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { dataProvider } from '../data';
 import type { Match, MatchEvent, Player, Season } from '../domain/types';
-import { loadSnapshot, saveSnapshot } from '../data/offline/snapshot';
+import { clearSnapshots, loadSnapshot, saveSnapshot } from '../data/offline/snapshot';
 
 interface AppDataState {
   players: Player[];
@@ -10,6 +10,8 @@ interface AppDataState {
   seasons: Season[];
   loaded: boolean;
   reload: () => Promise<void>;
+  /** Forgets all data, in memory and the offline snapshot — for when the app gets locked. */
+  clear: () => void;
 }
 
 export const useAppData = create<AppDataState>((set) => ({
@@ -41,6 +43,10 @@ export const useAppData = create<AppDataState>((set) => ({
         loaded: true,
       });
     }
+  },
+  clear: () => {
+    clearSnapshots();
+    set({ players: [], matches: [], events: [], seasons: [], loaded: false });
   },
 }));
 

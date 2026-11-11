@@ -9,6 +9,17 @@ export function saveSnapshot<T>(key: string, items: T[]): void {
   }
 }
 
+/** Wipes every stored collection — called whenever the app is locked, so a locked device keeps no copy of the stats. */
+export function clearSnapshots(): void {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(PREFIX)) localStorage.removeItem(key);
+    }
+  } catch {
+    // storage unavailable — nothing was stored there either.
+  }
+}
+
 export function loadSnapshot<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(PREFIX + key);

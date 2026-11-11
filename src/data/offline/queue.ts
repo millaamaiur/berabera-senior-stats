@@ -4,6 +4,7 @@ import { eventRepository } from '../supabase/eventRepository';
 import { seasonRepository } from '../supabase/seasonRepository';
 import type { Match, MatchEvent, Player, Season } from '../../domain/types';
 import { useSyncStatus } from '../../stores/useSyncStatus';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 const QUEUE_KEY = 'bbs:pendingQueue';
 const FAILED_KEY = 'bbs:failedQueue';
@@ -101,7 +102,9 @@ let flushing = false;
  * everything queued behind it.
  */
 export async function flushQueue(): Promise<void> {
-  if (flushing) return;
+  // Without a session every write is rejected, which would wrongly move still-good
+  // ops into the failed-queue for good — so wait until the app is unlocked again.
+  if (flushing || !useAuthStore.getState().unlocked) return;
   flushing = true;
   useSyncStatus.getState().setSyncing(true);
   try {

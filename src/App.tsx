@@ -12,7 +12,6 @@ const PlayerProfile = lazy(() => import('./screens/PlayerProfile').then((m) => (
 const PlayerMatchStats = lazy(() =>
   import('./screens/PlayerMatchStats').then((m) => ({ default: m.PlayerMatchStats }))
 );
-const Unlock = lazy(() => import('./screens/Unlock').then((m) => ({ default: m.Unlock })));
 
 export default function App() {
   return (
@@ -26,7 +25,6 @@ export default function App() {
         <Route path="jugadores" element={<Players />} />
         <Route path="jugadores/:id" element={<PlayerProfile />} />
         <Route path="jugadores/:id/partidos/:matchId" element={<PlayerMatchStats />} />
-        <Route path="desbloquear" element={<Unlock />} />
       </Route>
     </Routes>
   );
