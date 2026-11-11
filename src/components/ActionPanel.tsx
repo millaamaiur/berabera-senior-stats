@@ -19,11 +19,10 @@ const CARD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
   { type: 'exclusion_2min', label: '2 minutos' },
 ];
 
-type ShotFlow = { kind: 'field'; context: 'open_play' | 'penalty' } | { kind: 'gk'; context: 'open_play' | 'penalty' };
-type Step =
-  | { kind: 'shot'; flow: ShotFlow; result?: 'goal' | 'miss' | 'save' }
-  | { kind: 'card' }
-  | null;
+/** `counter`: a counterattack — ours for 'field', the rival's (shot at our keeper) for 'gk'. */
+type ShotFlow = { kind: 'field' | 'gk'; context: 'open_play' | 'penalty'; counter?: boolean };
+type ShotResult = 'goal' | 'miss' | 'save' | 'turnover';
+type Step = { kind: 'shot'; flow: ShotFlow; result?: ShotResult } | { kind: 'card' } | null;
 
 export function ActionPanel({ player }: ActionPanelProps) {
   const recordSimpleEvent = useLiveMatchStore((s) => s.recordSimpleEvent);
@@ -48,13 +47,20 @@ export function ActionPanel({ player }: ActionPanelProps) {
     setStep({ kind: 'shot', flow });
   }
 
-  async function chooseResult(result: 'goal' | 'miss' | 'save') {
+  async function chooseResult(result: ShotResult) {
     if (!step || step.kind !== 'shot') return;
+    const { flow } = step;
     // A gk "Fuera" never reaches the goal frame at all, so there's no zone to
     // pick — unlike a field "Fallo", which might still be on target (saved)
     // and needs one. Record it immediately instead of moving to that step.
-    if (step.flow.kind === 'gk' && result === 'miss') {
-      await recordGkShot(player.id, { result: 'miss', context: step.flow.context });
+    if (flow.kind === 'gk' && result === 'miss') {
+      await recordGkShot(player.id, { result: 'miss', context: flow.context, ...counterFlag(flow) });
+      finishAndReset();
+      return;
+    }
+    // A counter that ended with the ball lost has no shot at all — it's just a turnover.
+    if (result === 'turnover') {
+      await recordSimpleEvent(player.id, 'turnover', { counter: true });
       finishAndReset();
       return;
     }
@@ -63,22 +69,30 @@ export function ActionPanel({ player }: ActionPanelProps) {
 
   async function chooseZone(zone: Zone | null) {
     if (!step || step.kind !== 'shot' || !step.result) return;
-    if (step.flow.kind === 'field') {
-      await recordShot(player.id, { result: step.result as 'goal' | 'miss', zone: zone ?? undefined, context: step.flow.context });
+    const { flow } = step;
+    if (flow.kind === 'field') {
+      await recordShot(player.id, {
+        result: step.result as 'goal' | 'miss',
+        zone: zone ?? undefined,
+        context: flow.context,
+        ...counterFlag(flow),
+      });
     } else if (zone !== null) {
-      await recordGkShot(player.id, { result: step.result as 'save' | 'goal', zone, context: step.flow.context });
+      await recordGkShot(player.id, { result: step.result as 'save' | 'goal', zone, context: flow.context, ...counterFlag(flow) });
     }
     finishAndReset();
   }
 
   if (step?.kind === 'shot' && !step.result) {
-    const options = step.flow.kind === 'field' ? (['goal', 'miss'] as const) : (['save', 'goal', 'miss'] as const);
+    const { flow } = step;
+    const options: ShotResult[] =
+      flow.kind === 'gk' ? ['save', 'goal', 'miss'] : flow.counter ? ['goal', 'miss', 'turnover'] : ['goal', 'miss'];
     const labels: Record<string, string> =
-      step.flow.kind === 'gk' ? { save: 'Parada', goal: 'Gol', miss: 'Fuera' } : { goal: 'Gol', miss: 'Fallo' };
+      flow.kind === 'gk' ? { save: 'Parada', goal: 'Gol', miss: 'Fuera' } : { goal: 'Gol', miss: 'Fallo', turnover: 'Pérdida' };
     return (
       <div className="flex flex-col items-center gap-4">
-        <p className="text-lg font-semibold text-white">¿Resultado?</p>
-        <div className="flex gap-4">
+        <p className="text-lg font-semibold text-white">{flow.counter ? '¿Cómo acaba el contraataque?' : '¿Resultado?'}</p>
+        <div className="flex flex-wrap justify-center gap-4">
           {options.map((opt) => (
             <button
               key={opt}
@@ -130,6 +144,10 @@ export function ActionPanel({ player }: ActionPanelProps) {
       {isGoalkeeper ? (
         <>
           <ActionButton label="Lanzamiento" onClick={() => startShot({ kind: 'gk', context: 'open_play' })} />
+          <ActionButton
+            label="Contraataque"
+            onClick={() => startShot({ kind: 'gk', context: 'open_play', counter: true })}
+          />
           <ActionButton label="Penalti" onClick={() => startShot({ kind: 'gk', context: 'penalty' })} />
           {/* The keeper's own goal is a regular `shot` (it counts for us), so skip straight to its zone. */}
           <ActionButton
@@ -143,6 +161,10 @@ export function ActionPanel({ player }: ActionPanelProps) {
       ) : (
         <>
           <ActionButton label="Lanzamiento" onClick={() => startShot({ kind: 'field', context: 'open_play' })} />
+          <ActionButton
+            label="Contraataque"
+            onClick={() => startShot({ kind: 'field', context: 'open_play', counter: true })}
+          />
           <ActionButton label="Penalti" onClick={() => startShot({ kind: 'field', context: 'penalty' })} />
           {POSSESSION_ACTIONS.map((a) => (
             <ActionButton key={a.type} label={a.label} onClick={() => handleSimple(a.type)} />
@@ -152,6 +174,11 @@ export function ActionPanel({ player }: ActionPanelProps) {
       )}
     </div>
   );
+}
+
+/** Only tag counterattack events, so ordinary ones keep the exact shape they've always had. */
+function counterFlag(flow: ShotFlow): { counter?: true } {
+  return flow.counter ? { counter: true } : {};
 }
 
 function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {

@@ -74,6 +74,8 @@ export interface FieldShotEventData {
   /** Absent when the shot missed the goal frame entirely ("fuera"), so it has no in-goal placement. */
   zone?: Zone;
   context: 'open_play' | 'penalty';
+  /** Shot that ended one of our counterattacks (contraataque). Absent on events recorded before this existed. */
+  counter?: boolean;
 }
 
 export interface GkShotEventData {
@@ -81,6 +83,13 @@ export interface GkShotEventData {
   /** Absent when the shot missed the goal frame entirely ("fuera") — no save or goal either way. */
   zone?: Zone;
   context: 'open_play' | 'penalty';
+  /** Shot that ended a rival counterattack. Absent on events recorded before this existed. */
+  counter?: boolean;
+}
+
+export interface TurnoverEventData {
+  /** Ball lost during one of our counterattacks — that counter ended without a shot. */
+  counter?: boolean;
 }
 
 export interface CourtChangeEventData {
@@ -106,7 +115,8 @@ export type MatchEvent =
   | (BaseEvent & { eventType: 'shot'; eventData: FieldShotEventData })
   | (BaseEvent & { eventType: 'gk_shot'; eventData: GkShotEventData })
   | (BaseEvent & { eventType: 'assist' })
-  | (BaseEvent & { eventType: 'turnover' })
+  // eventData is null/absent on every ordinary turnover; only a counterattack one carries it.
+  | (BaseEvent & { eventType: 'turnover'; eventData?: TurnoverEventData | null })
   | (BaseEvent & { eventType: 'recovery' })
   | (BaseEvent & { eventType: 'card_yellow' })
   | (BaseEvent & { eventType: 'card_red' })

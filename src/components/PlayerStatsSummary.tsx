@@ -1,5 +1,6 @@
 import type { MatchEvent, Player } from '../domain/types';
 import {
+  computeCounterStats,
   computeFieldPlayerStats,
   computeGoalkeeperStats,
   computeOutsideShots,
@@ -9,6 +10,7 @@ import {
 import { formatClock } from '../utils/time';
 import { StatCard } from './StatCard';
 import { ZoneMap } from './ZoneMap';
+import { CounterSummary } from './CounterSummary';
 
 interface PlayerStatsSummaryProps {
   player: Player;
@@ -28,6 +30,9 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
   const shotKind = isGoalkeeper ? 'gk_shot' : 'shot';
   const zoneStats = computeZoneStats(events, player.id, shotKind);
   const outsideShots = computeOutsideShots(events, shotKind, player.id);
+  const counters = computeCounterStats(events, player.id);
+  const counterSide = isGoalkeeper ? 'received' : 'made';
+  const hasCounters = counters[counterSide].total > 0;
 
   return (
     <>
@@ -72,6 +77,13 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
         <StatCard label="GC en pista" value={defense.goalsAgainst} />
         <StatCard label="% Def. equipo" value={defense.attacksFaced ? `${defense.stopPct}%` : '—'} />
       </section>
+
+      {hasCounters && (
+        <section>
+          <h3 className="mb-2 text-lg font-bold text-white">Contraataques</h3>
+          <CounterSummary stats={counters} show={counterSide} />
+        </section>
+      )}
 
       <section>
         <h3 className="mb-2 text-lg font-bold text-white">Zonas de lanzamiento</h3>

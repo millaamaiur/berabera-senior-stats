@@ -225,6 +225,41 @@ export function computeOutsideShots(events: MatchEvent[], kind: 'shot' | 'gk_sho
   return count;
 }
 
+export interface CounterStats {
+  /** Our counterattacks: each ends in a goal, a missed shot, or a lost ball. */
+  made: { total: number; goals: number; misses: number; turnovers: number };
+  /** The rival's counterattacks that ended in a shot at our goal. */
+  received: { total: number; goals: number; saves: number; outside: number };
+}
+
+/**
+ * Contraataques, from the shots/turnovers flagged `counter` when recorded — only
+ * tracked since that flag existed, so older matches have none. With a playerId,
+ * keeps just that player's events: the counters a field player finished, or the
+ * ones a goalkeeper faced.
+ */
+export function computeCounterStats(events: MatchEvent[], playerId?: string): CounterStats {
+  const made = { total: 0, goals: 0, misses: 0, turnovers: 0 };
+  const received = { total: 0, goals: 0, saves: 0, outside: 0 };
+  for (const e of events) {
+    if (playerId !== undefined && e.playerId !== playerId) continue;
+    if (e.eventType === 'shot' && e.eventData.counter) {
+      made.total++;
+      if (e.eventData.result === 'goal') made.goals++;
+      else made.misses++;
+    } else if (e.eventType === 'turnover' && e.eventData?.counter) {
+      made.total++;
+      made.turnovers++;
+    } else if (e.eventType === 'gk_shot' && e.eventData.counter) {
+      received.total++;
+      if (e.eventData.result === 'goal') received.goals++;
+      else if (e.eventData.result === 'save') received.saves++;
+      else received.outside++;
+    }
+  }
+  return { made, received };
+}
+
 export interface TeamMatchStats {
   /** Open play + penalties combined. */
   shots: number;

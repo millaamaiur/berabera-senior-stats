@@ -12,7 +12,7 @@ export function shot(
   playerId: string,
   timestamp: number,
   result: 'goal' | 'miss',
-  opts: { zone?: number; context?: 'open_play' | 'penalty' } = {}
+  opts: { zone?: number; context?: 'open_play' | 'penalty'; counter?: boolean } = {}
 ): MatchEvent {
   return {
     id: makeId(),
@@ -20,7 +20,7 @@ export function shot(
     playerId,
     timestamp,
     eventType: 'shot',
-    eventData: { result, zone: opts.zone as never, context: opts.context ?? 'open_play' },
+    eventData: { result, zone: opts.zone as never, context: opts.context ?? 'open_play', counter: opts.counter },
   } as MatchEvent;
 }
 
@@ -30,7 +30,8 @@ export function gkShot(
   timestamp: number,
   result: 'save' | 'goal' | 'miss',
   zone?: number,
-  context: 'open_play' | 'penalty' = 'open_play'
+  context: 'open_play' | 'penalty' = 'open_play',
+  counter?: boolean
 ): MatchEvent {
   return {
     id: makeId(),
@@ -38,7 +39,7 @@ export function gkShot(
     playerId,
     timestamp,
     eventType: 'gk_shot',
-    eventData: { result, zone: zone as never, context },
+    eventData: { result, zone: zone as never, context, counter },
   } as MatchEvent;
 }
 
@@ -57,4 +58,9 @@ type SimpleType = 'turnover' | 'recovery' | 'card_yellow' | 'card_red' | 'card_b
 
 export function simple(eventType: SimpleType, playerId: string, timestamp: number): MatchEvent {
   return { id: makeId(), matchId: 'm1', playerId, timestamp, eventType } as MatchEvent;
+}
+
+/** A ball lost during one of our counterattacks. */
+export function counterTurnover(playerId: string, timestamp: number): MatchEvent {
+  return { id: makeId(), matchId: 'm1', playerId, timestamp, eventType: 'turnover', eventData: { counter: true } };
 }

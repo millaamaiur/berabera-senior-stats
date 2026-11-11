@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppData, activeSeason } from '../stores/useAppData';
 import {
+  computeCounterStats,
   computeMatchScore,
   computeOutsideShots,
   computeTeamMatchStats,
@@ -11,6 +12,7 @@ import {
 } from '../stats/matchStats';
 import { ClubLogo } from '../components/ClubLogo';
 import { ZoneMap } from '../components/ZoneMap';
+import { CounterSummary } from '../components/CounterSummary';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
@@ -47,6 +49,7 @@ export function Home() {
     [seasonMatches, seasonEvents]
   );
   const teamPerf = useMemo(() => computeTeamMatchStats(seasonEvents), [seasonEvents]);
+  const counters = useMemo(() => computeCounterStats(seasonEvents), [seasonEvents]);
 
   const finishedWithResults = useMemo(() => {
     return seasonMatches
@@ -188,6 +191,13 @@ export function Home() {
             <StatCard label="% Acierto tiro" value={`${teamPerf.shotPct}%`} />
             <StatCard label="% Paradas" value={`${teamPerf.savePct}%`} />
           </div>
+        </section>
+      )}
+
+      {counters.made.total + counters.received.total > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold text-white">Contraataques</h2>
+          <CounterSummary stats={counters} />
         </section>
       )}
 

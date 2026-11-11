@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppData } from '../stores/useAppData';
 import {
+  computeCounterStats,
   computeMatchComparison,
   computeMatchScore,
   computeOutsideShots,
@@ -10,6 +11,7 @@ import {
   matchOutcome,
 } from '../stats/matchStats';
 import { ZoneMap } from '../components/ZoneMap';
+import { CounterSummary } from '../components/CounterSummary';
 import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from '../components/EventEditorModal';
 import { formatDate } from '../utils/time';
 import { formatScore } from '../utils/score';
@@ -61,6 +63,7 @@ export function MatchDetail() {
   const outcome = matchOutcome(goalsFor, goalsAgainst);
   const team = computeTeamMatchStats(matchEvents);
   const comparison = computeMatchComparison(matchEvents);
+  const counters = computeCounterStats(matchEvents);
   const attackZones = computeTeamZoneStats(matchEvents, 'shot');
   const concededZones = computeTeamZoneStats(matchEvents, 'gk_shot');
   const roster = players.filter((p) => match.calledPlayerIds.includes(p.id));
@@ -203,6 +206,14 @@ export function MatchDetail() {
               <StatCard label="Exclus." value={team.exclusions} />
             </div>
           </div>
+
+          {/* Hidden on matches recorded before counterattacks were tracked, rather than showing misleading zeros. */}
+          {counters.made.total + counters.received.total > 0 && (
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Contraataques</h4>
+              <CounterSummary stats={counters} />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>

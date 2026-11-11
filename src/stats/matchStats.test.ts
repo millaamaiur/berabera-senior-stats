@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Match, MatchEvent } from '../domain/types';
 import {
+  computeCounterStats,
   computeDefensiveOnCourtStats,
   computeFieldPlayerStats,
   computeGoalkeeperStats,
@@ -15,7 +16,7 @@ import {
   computeZoneStats,
   matchOutcome,
 } from './matchStats';
-import { courtChange, gkShot, shot, simple } from './testFixtures';
+import { counterTurnover, courtChange, gkShot, shot, simple } from './testFixtures';
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
   return {
@@ -222,6 +223,39 @@ describe('computeZoneStats / computeTeamZoneStats', () => {
     const events: MatchEvent[] = [gkShot('gk1', 1, 'save', 5), gkShot('gk1', 2, 'miss')];
     const zones = computeTeamZoneStats(events, 'gk_shot');
     expect(zones.reduce((sum, z) => sum + z.shots, 0)).toBe(1);
+  });
+});
+
+describe('computeCounterStats', () => {
+  const events: MatchEvent[] = [
+    shot('p1', 1, 'goal', { zone: 5, counter: true }),
+    shot('p1', 2, 'miss', { counter: true }), // Fuera on a counter still counts as a missed counter
+    shot('p2', 3, 'goal', { zone: 3, counter: true }),
+    shot('p2', 4, 'goal', { zone: 3 }), // ordinary attack — not a counter
+    counterTurnover('p2', 5),
+    simple('turnover', 'p1', 6), // ordinary turnover — not a counter
+    gkShot('gk1', 7, 'goal', 7, 'open_play', true),
+    gkShot('gk1', 8, 'save', 4, 'open_play', true),
+    gkShot('gk1', 9, 'miss', undefined, 'open_play', true),
+    gkShot('gk1', 10, 'goal', 2), // ordinary rival attack — not a counter
+  ];
+
+  it('splits our counters into goal / miss / lost ball, and the rival\'s into goal / save / wide', () => {
+    expect(computeCounterStats(events)).toEqual({
+      made: { total: 4, goals: 2, misses: 1, turnovers: 1 },
+      received: { total: 3, goals: 1, saves: 1, outside: 1 },
+    });
+  });
+
+  it('keeps just one player\'s counters when given a playerId', () => {
+    expect(computeCounterStats(events, 'p2').made).toEqual({ total: 2, goals: 1, misses: 0, turnovers: 1 });
+    expect(computeCounterStats(events, 'gk1').received.total).toBe(3);
+  });
+
+  it('still counts counter shots and turnovers in the ordinary numbers', () => {
+    expect(computeFieldPlayerStats(events, 'p2').goals).toBe(2);
+    expect(computeFieldPlayerStats(events, 'p2').turnovers).toBe(1);
+    expect(computeMatchScore(events)).toEqual({ goalsFor: 3, goalsAgainst: 2 });
   });
 });
 

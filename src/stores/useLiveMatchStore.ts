@@ -8,6 +8,7 @@ import type {
   Match,
   MatchEvent,
   SimpleFieldEventType,
+  TurnoverEventData,
 } from '../domain/types';
 import { HALFTIME_SECONDS } from '../domain/types';
 import { elapsedAt, nextPeriodEnd } from '../domain/clock';
@@ -49,7 +50,8 @@ interface LiveMatchState {
    * Returns the ids from `inIds` that couldn't find a free spot.
    */
   confirmSubstitution: (outIds: string[], inIds: string[]) => Promise<string[]>;
-  recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType) => Promise<void>;
+  /** `eventData` only for a counterattack turnover; every other simple event carries none. */
+  recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType, eventData?: TurnoverEventData) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
   recordGkShot: (playerId: string, eventData: GkShotEventData) => Promise<void>;
   /** Removes the most recently recorded event for this match — works even right after a page reload. */
@@ -273,10 +275,10 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     return rejected;
   },
 
-  recordSimpleEvent: async (playerId, eventType) => {
+  recordSimpleEvent: async (playerId, eventType, eventData) => {
     const { match } = get();
     if (!match) return;
-    await pushEvent(get, set, match, playerId, eventType, undefined);
+    await pushEvent(get, set, match, playerId, eventType, eventData);
   },
 
   recordShot: async (playerId, eventData) => {

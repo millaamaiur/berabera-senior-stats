@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { MatchEvent, Player, Zone } from '../domain/types';
 import type { TimelineRow } from '../stats/timeline';
-import { EVENT_LABELS } from '../utils/eventLabels';
+import { EVENT_LABELS, isCounter } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 import { ShotGrid3x3 } from './ShotGrid3x3';
 import { useConfirmDialog } from './ConfirmDialog';
@@ -33,7 +33,7 @@ interface EventEditorModalProps {
 
 const RESULT_LABELS: Record<string, string> = { goal: 'Gol', miss: 'Fallo', save: 'Parada' };
 
-/** Edit the result/zone of a shot, or delete any single event / substitution pair. */
+/** Edit the result/zone of a shot, mark/unmark a counterattack, or delete any single event / substitution pair. */
 export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose }: EventEditorModalProps) {
   const { ask, dialog } = useConfirmDialog();
   const initialEvent = target.kind === 'single' ? target.event : null;
@@ -73,6 +73,23 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
       await onUpdateEvent({ ...event, eventData: { ...event.eventData, result: draftResult as 'save' | 'goal', zone } });
       onClose();
     }
+  }
+
+  /** For a counterattack forgotten (or wrongly marked) during the match. Saves right away. */
+  async function toggleCounter() {
+    if (target.kind !== 'single') return;
+    const event = target.event;
+    const counter = !isCounter(event);
+    if (event.eventType === 'shot') {
+      await onUpdateEvent({ ...event, eventData: { ...event.eventData, counter } });
+    } else if (event.eventType === 'gk_shot') {
+      await onUpdateEvent({ ...event, eventData: { ...event.eventData, counter } });
+    } else if (event.eventType === 'turnover') {
+      await onUpdateEvent({ ...event, eventData: counter ? { counter: true } : null });
+    } else {
+      return;
+    }
+    onClose();
   }
 
   async function chooseGkResult(result: string) {
@@ -118,8 +135,21 @@ export function EventEditorModal({ target, onUpdateEvent, onDeleteEvent, onClose
             <div className="rounded-2xl bg-white/5 p-3 text-sm text-white ring-1 ring-white/10">
               <p className="font-mono text-amber-400">{formatClock(target.event.timestamp)}</p>
               <p className="mt-1 font-semibold">{target.player?.name ?? '—'}</p>
-              <p className="text-slate-400">{EVENT_LABELS[target.event.eventType]}</p>
+              <p className="text-slate-400">
+                {EVENT_LABELS[target.event.eventType]}
+                {isCounter(target.event) ? ' · contraataque' : ''}
+              </p>
             </div>
+
+            {(isShot || target.event.eventType === 'turnover') && (
+              <button
+                type="button"
+                onClick={toggleCounter}
+                className="rounded-full bg-white/8 px-4 py-2.5 text-sm font-bold text-slate-200 transition-transform touch-manipulation active:scale-95"
+              >
+                {isCounter(target.event) ? 'Quitar contraataque' : 'Marcar como contraataque'}
+              </button>
+            )}
 
             {isShot && (
               <div className="flex flex-col items-center gap-3">
