@@ -13,6 +13,7 @@ import {
 import { ClubLogo } from '../components/ClubLogo';
 import { ZoneMap } from '../components/ZoneMap';
 import { CounterSummary } from '../components/CounterSummary';
+import { BackupButton } from '../components/BackupButton';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { useConfirmDialog } from '../components/ConfirmDialog';
@@ -262,6 +263,14 @@ export function Home() {
           </div>
         </section>
       )}
+
+      <section>
+        <h2 className="mb-1 text-lg font-bold text-white">Copia de seguridad</h2>
+        <p className="mb-3 text-sm text-slate-400">
+          Guarda en este dispositivo un archivo con todos los partidos y estadísticas, por si algún día pasa algo con el servidor.
+        </p>
+        <BackupButton />
+      </section>
 
       {dialog}
     </div>

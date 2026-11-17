@@ -15,7 +15,7 @@ import { elapsedAt, nextPeriodEnd } from '../domain/clock';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { useAppData } from './useAppData';
 import { useToast } from './useToast';
-import { writeOrQueue } from '../data/offline/queue';
+import { withPendingWrites, writeOrQueue } from '../data/offline/queue';
 import { describeEventForToast } from '../utils/eventLabels';
 import { HAPTIC, vibrate } from '../utils/haptics';
 
@@ -94,6 +94,11 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
       match = cached.matches.find((m) => m.id === matchId) ?? null;
       events = cached.events.filter((e) => e.matchId === matchId);
     }
+    // Whatever was recorded on this device but hasn't uploaded yet (e.g. the app
+    // was closed or reloaded mid-match with no wifi) must still be on screen —
+    // otherwise the score, clock and Deshacer would all work off an older copy.
+    match = withPendingWrites(match ? [match] : [], 'matches').find((m) => m.id === matchId) ?? null;
+    events = withPendingWrites(events, 'events').filter((e) => e.matchId === matchId);
     if (!match) {
       set({ loading: false, match: null, events: [] });
       return;

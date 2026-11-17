@@ -2,21 +2,13 @@ import { playerRepository } from '../supabase/playerRepository';
 import { matchRepository } from '../supabase/matchRepository';
 import { eventRepository } from '../supabase/eventRepository';
 import { seasonRepository } from '../supabase/seasonRepository';
-import type { Match, MatchEvent, Player, Season } from '../../domain/types';
 import { useSyncStatus } from '../../stores/useSyncStatus';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { applyPendingOps, isRetryableError, type PendingCollection, type PendingOp } from './pending';
+import { loadSnapshot, saveSnapshot } from './snapshot';
 
 const QUEUE_KEY = 'bbs:pendingQueue';
 const FAILED_KEY = 'bbs:failedQueue';
-
-type PendingOp =
-  | { id: string; collection: 'players'; method: 'upsert'; payload: Player }
-  | { id: string; collection: 'matches'; method: 'upsert'; payload: Match }
-  | { id: string; collection: 'matches'; method: 'delete'; payload: string }
-  | { id: string; collection: 'events'; method: 'add'; payload: MatchEvent }
-  | { id: string; collection: 'events'; method: 'update'; payload: MatchEvent }
-  | { id: string; collection: 'events'; method: 'delete'; payload: string }
-  | { id: string; collection: 'seasons'; method: 'upsert'; payload: Season };
 
 export type QueueableOp = Omit<PendingOp, 'id'>;
 
@@ -56,19 +48,20 @@ function writeFailedQueue(list: PendingOp[]): void {
   useSyncStatus.getState().setFailedCount(list.length);
 }
 
+/** Everything recorded on this device that hasn't reached Supabase yet, laid over `items` — see applyPendingOps. */
+export function withPendingWrites<T extends { id: string }>(items: T[], collection: PendingCollection): T[] {
+  return applyPendingOps(items, readQueue(), collection);
+}
+
 /**
- * Tells apart "we're offline, try again later" from "the server definitively
- * rejected this." A real Postgres/PostgREST rejection always carries an error
- * `code` (e.g. a foreign-key violation because the match this event pointed
- * at was deleted while the write sat in the queue); a request that never
- * reached the server at all (no wifi) throws a plain fetch failure with no
- * such code. Only the second case is worth retrying — retrying the first
- * forever would just wait for a rejection that will never change.
+ * Keeps the offline snapshot in step with every write that reaches Supabase.
+ * It's otherwise only refreshed by a full reload, so a match reopened offline
+ * would be missing whatever was recorded online since (the lineup, the first
+ * goals...) — all safely on the server, but not on screen to keep scoring from.
  */
-function isConnectivityError(error: unknown): boolean {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
-  const code = (error as { code?: unknown } | null)?.code;
-  return !code;
+function recordInSnapshot(op: QueueableOp): void {
+  const { collection } = op;
+  saveSnapshot(collection, applyPendingOps(loadSnapshot<{ id: string }>(collection), [{ ...op, id: '' } as PendingOp], collection));
 }
 
 function runOp(op: PendingOp): Promise<void> {
@@ -96,10 +89,10 @@ let flushing = false;
 
 /**
  * Replays the pending queue against Supabase, in order. Stops at the first
- * connectivity failure (still offline — leaves it at the front to retry
- * later). A write the server actually rejects is set aside into a separate
- * failed-queue instead, so one permanently-broken op can never block
- * everything queued behind it.
+ * retryable failure (offline, or the session not refreshed yet — leaves it at
+ * the front to retry later). A write the server actually rejects is set aside
+ * into a separate failed-queue instead, so one permanently-broken op can never
+ * block everything queued behind it.
  */
 export async function flushQueue(): Promise<void> {
   // Without a session every write is rejected, which would wrongly move still-good
@@ -112,10 +105,11 @@ export async function flushQueue(): Promise<void> {
     while (queue.length > 0) {
       try {
         await runOp(queue[0]);
+        recordInSnapshot(queue[0]);
         queue = queue.slice(1);
         writeQueue(queue);
       } catch (error) {
-        if (isConnectivityError(error)) break;
+        if (isRetryableError(error, navigator.onLine)) break;
         writeFailedQueue([...readFailedQueue(), queue[0]]);
         queue = queue.slice(1);
         writeQueue(queue);
@@ -127,13 +121,29 @@ export async function flushQueue(): Promise<void> {
   }
 }
 
+/**
+ * Gives every set-aside write another go, back at the front of the queue in
+ * its original order. Returns how many are still failing afterwards.
+ */
+export async function retryFailed(): Promise<number> {
+  const failed = readFailedQueue();
+  if (failed.length > 0) {
+    writeFailedQueue([]);
+    writeQueue([...failed, ...readQueue()]);
+  }
+  await flushQueue();
+  return readFailedQueue().length;
+}
+
 /** Runs a write against Supabase; if it fails (offline or otherwise), queues it for later instead of throwing. */
 export async function writeOrQueue(op: QueueableOp, run: () => Promise<void>): Promise<void> {
   try {
     await run();
   } catch {
     enqueue(op);
+    return;
   }
+  recordInSnapshot(op);
 }
 
 let started = false;

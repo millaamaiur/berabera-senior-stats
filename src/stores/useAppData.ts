@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { dataProvider } from '../data';
 import type { Match, MatchEvent, Player, Season } from '../domain/types';
 import { clearSnapshots, loadSnapshot, saveSnapshot } from '../data/offline/snapshot';
+import { withPendingWrites } from '../data/offline/queue';
 
 interface AppDataState {
   players: Player[];
@@ -21,8 +22,12 @@ export const useAppData = create<AppDataState>((set) => ({
   seasons: [],
   loaded: false,
   reload: async () => {
+    let players: Player[];
+    let matches: Match[];
+    let events: MatchEvent[];
+    let seasons: Season[];
     try {
-      const [players, matches, events, seasons] = await Promise.all([
+      [players, matches, events, seasons] = await Promise.all([
         dataProvider.players.getAll(),
         dataProvider.matches.getAll(),
         dataProvider.events.getAll(),
@@ -32,17 +37,21 @@ export const useAppData = create<AppDataState>((set) => ({
       saveSnapshot('matches', matches);
       saveSnapshot('events', events);
       saveSnapshot('seasons', seasons);
-      set({ players, matches, events, seasons, loaded: true });
     } catch (error) {
       console.error('Failed to load app data, falling back to the last local snapshot', error);
-      set({
-        players: loadSnapshot<Player>('players'),
-        matches: loadSnapshot<Match>('matches'),
-        events: loadSnapshot<MatchEvent>('events'),
-        seasons: loadSnapshot<Season>('seasons'),
-        loaded: true,
-      });
+      players = loadSnapshot<Player>('players');
+      matches = loadSnapshot<Match>('matches');
+      events = loadSnapshot<MatchEvent>('events');
+      seasons = loadSnapshot<Season>('seasons');
     }
+    // Either source can be missing writes this device made that haven't uploaded yet.
+    set({
+      players: withPendingWrites(players, 'players'),
+      matches: withPendingWrites(matches, 'matches'),
+      events: withPendingWrites(events, 'events'),
+      seasons: withPendingWrites(seasons, 'seasons'),
+      loaded: true,
+    });
   },
   clear: () => {
     clearSnapshots();

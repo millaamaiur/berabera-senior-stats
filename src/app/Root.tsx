@@ -5,6 +5,7 @@ import { ToastHost } from '../components/ToastHost';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { PinLock } from '../components/PinLock';
 import { ClubLogo } from '../components/ClubLogo';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAppData } from '../stores/useAppData';
 import { useAuthStore } from '../stores/useAuthStore';
 import { initOfflineSync, flushQueue } from '../data/offline/queue';
@@ -65,9 +66,12 @@ export function Root() {
       <main className="order-1 min-h-0 flex-1 sm:order-2">
         <PullToRefresh onRefresh={handleRefresh} disabled={isLiveScoring} className="h-full overflow-y-auto pb-24 sm:pb-0">
           {loaded ? (
-            <Suspense fallback={<LoadingScreen />}>
-              <Outlet />
-            </Suspense>
+            // Per screen (reset on navigation) so the nav bar stays usable if one screen fails.
+            <ErrorBoundary key={location.pathname}>
+              <Suspense fallback={<LoadingScreen />}>
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
           ) : (
             <LoadingScreen />
           )}

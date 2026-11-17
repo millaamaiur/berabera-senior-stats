@@ -2,11 +2,14 @@ import { NavLink } from 'react-router-dom';
 import type { MouseEvent } from 'react';
 import type { ReactNode } from 'react';
 import { ClubLogo } from './ClubLogo';
+import { useConfirmDialog } from './ConfirmDialog';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useAppData } from '../stores/useAppData';
 import { useSyncStatus } from '../stores/useSyncStatus';
 import { useLiveMatchStore } from '../stores/useLiveMatchStore';
 import { useToast } from '../stores/useToast';
 import { useTheme } from '../stores/useTheme';
+import { flushQueue, retryFailed } from '../data/offline/queue';
 
 const ICON_PROPS = {
   viewBox: '0 0 24 24',
@@ -87,6 +90,9 @@ export function NavBar() {
   // Only the clock actually running blocks navigation — paused (including at
   // halftime, where the coach may well want to check Inicio/Partidos) leaves it open.
   const matchRunning = useLiveMatchStore((s) => s.match?.clock.running ?? false);
+  const liveMatch = useLiveMatchStore((s) => s.match);
+  const matches = useAppData((s) => s.matches);
+  const { ask, dialog } = useConfirmDialog();
 
   function guardNav(e: MouseEvent) {
     if (!matchRunning) return;
@@ -94,7 +100,44 @@ export function NavBar() {
     useToast.getState().show('Pausa el partido para poder navegar');
   }
 
+  async function handleRetry() {
+    const stillFailing = await retryFailed();
+    useToast
+      .getState()
+      .show(stillFailing === 0 ? 'Todo subido correctamente' : `${stillFailing} cambios siguen sin poder subirse`);
+  }
+
+  async function handleLock() {
+    const toast = useToast.getState().show;
+    if (matchRunning) {
+      toast('Pausa el partido para poder bloquear');
+      return;
+    }
+    // Unlocking checks the PIN online, so locking with no connection would shut
+    // the coach out — mid-match, possibly — until there's internet again.
+    if (!navigator.onLine) {
+      toast('Sin conexión: si bloqueas no podrás volver a entrar hasta tener internet');
+      return;
+    }
+    await flushQueue();
+    const pending = useSyncStatus.getState().pendingCount;
+    const matchInProgress =
+      (liveMatch !== null && liveMatch.status !== 'finished' && liveMatch.clock.hasStartedOnce) ||
+      matches.some((m) => m.status === 'live' && m.clock.hasStartedOnce);
+    if (pending > 0 || matchInProgress) {
+      const message = [
+        matchInProgress && 'Hay un partido empezado y sin finalizar.',
+        pending > 0 && `Quedan ${pending} cambios sin subir: se subirán cuando vuelvas a entrar.`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      if (!(await ask({ title: '¿Bloquear la app?', message, confirmLabel: 'Bloquear' }))) return;
+    }
+    await lock();
+  }
+
   return (
+    <>
     <nav
       className="fixed inset-x-3 bottom-3 z-30 flex items-center gap-1 rounded-3xl bg-panel/85 p-1.5 shadow-2xl shadow-black/50 ring-1 ring-white/10 backdrop-blur-xl sm:static sm:order-1 sm:inset-auto sm:w-24 sm:flex-col sm:gap-2 sm:rounded-none sm:bg-panel/60 sm:p-3 sm:pt-6 sm:shadow-none sm:ring-0 sm:ring-white/5 sm:[border-inline-end:1px_solid_rgba(255,255,255,0.08)]"
       style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}
@@ -111,13 +154,16 @@ export function NavBar() {
       )}
 
       {failedCount > 0 && (
-        <div
-          className="hidden shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-rose-500/10 px-2 py-2 text-center ring-1 ring-rose-500/30 sm:flex"
-          title="Estos cambios llegaron a intentarse pero el servidor los rechazó (por ejemplo, el partido ya no existe) — no se van a reintentar solos."
+        <button
+          type="button"
+          onClick={handleRetry}
+          className="hidden shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-rose-500/10 px-2 py-2 text-center ring-1 ring-rose-500/30 touch-manipulation active:bg-rose-500/20 sm:flex"
+          title="El servidor rechazó estos cambios. Toca para volver a intentarlo."
         >
           <span className="text-[0.65rem] font-bold text-rose-400">Error al subir</span>
           <span className="text-[0.6rem] text-rose-300">{failedCount} sin guardar</span>
-        </div>
+          <span className="text-[0.6rem] font-bold text-rose-400 underline">Reintentar</span>
+        </button>
       )}
 
       <div className="flex flex-1 items-center gap-1 sm:flex-col sm:gap-2">
@@ -147,9 +193,14 @@ export function NavBar() {
         )}
 
         {failedCount > 0 && (
-          <span className="flex shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[0.6rem] font-black text-white sm:hidden">
-            {failedCount}
-          </span>
+          <button
+            type="button"
+            onClick={handleRetry}
+            aria-label={`${failedCount} cambios sin guardar. Reintentar`}
+            className="flex shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[0.6rem] font-black text-white touch-manipulation sm:hidden"
+          >
+            {failedCount} ↻
+          </button>
         )}
 
         <button
@@ -163,13 +214,7 @@ export function NavBar() {
 
         <button
           type="button"
-          onClick={() => {
-            if (matchRunning) {
-              useToast.getState().show('Pausa el partido para poder bloquear');
-              return;
-            }
-            lock();
-          }}
+          onClick={handleLock}
           className="flex flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-xs font-bold text-emerald-400 touch-manipulation active:bg-white/5 sm:mt-auto sm:w-full sm:flex-none sm:py-4"
         >
           <LockIcon />
@@ -177,5 +222,8 @@ export function NavBar() {
         </button>
       </div>
     </nav>
+    {/* Outside <nav>: its backdrop-blur would otherwise trap this fixed overlay inside the bar. */}
+    {dialog}
+    </>
   );
 }

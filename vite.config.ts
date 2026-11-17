@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate': a new deploy waits for "Actualizar" (see UpdatePrompt)
+      // instead of swapping files under a page that may be open mid-match.
+      registerType: 'prompt',
       manifest: {
         name: 'BERA BERA — Estadísticas',
         short_name: 'Bera Bera Stats',
