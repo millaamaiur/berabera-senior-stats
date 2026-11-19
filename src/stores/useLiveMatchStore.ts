@@ -3,6 +3,7 @@ import { dataProvider } from '../data';
 import { createId } from '../utils/id';
 import type {
   CourtChangeEventData,
+  CourtSpot,
   FieldShotEventData,
   GkShotEventData,
   Match,
@@ -39,17 +40,26 @@ interface LiveMatchState {
   updateCalledPlayers: (calledPlayerIds: string[]) => Promise<void>;
   updateDate: (date: string) => Promise<void>;
 
-  /** Returns false when the move is rejected (e.g. the 6+1 court limit is already full). */
-  toggleCourt: (playerId: string) => Promise<boolean>;
+  /**
+   * Returns false when the move is rejected (e.g. the 6+1 court limit is already full).
+   * `spot` is where an entering player is drawn on the court.
+   */
+  toggleCourt: (playerId: string, spot?: CourtSpot) => Promise<boolean>;
   /**
    * Applies a whole substitution (any number of exits + entries) as one atomic
    * batch sharing a single timestamp, so the timeline can always pair them up
    * into a single "cambio" row — unlike calling toggleCourt in a loop, where
    * each write's network round-trip could push the elapsed-seconds reading
    * into the next second and silently break the pairing.
+   * `spots` says where each entering player is drawn (by their id), normally
+   * the spot of whoever they replace.
    * Returns the ids from `inIds` that couldn't find a free spot.
    */
-  confirmSubstitution: (outIds: string[], inIds: string[]) => Promise<string[]>;
+  confirmSubstitution: (
+    outIds: string[],
+    inIds: string[],
+    spots?: Partial<Record<string, CourtSpot>>
+  ) => Promise<string[]>;
   /** `eventData` only for a counterattack turnover; every other simple event carries none. */
   recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType, eventData?: TurnoverEventData) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
@@ -195,7 +205,7 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     await useAppData.getState().reload();
   },
 
-  toggleCourt: async (playerId: string) => {
+  toggleCourt: async (playerId: string, spot?: CourtSpot) => {
     const { match, events } = get();
     if (!match) return false;
     const onCourt = getCurrentOnCourt(events);
@@ -208,12 +218,13 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
         if (sameKindOnCourt >= COURT_LIMITS[player.position]) return false;
       }
     }
-    const eventData: CourtChangeEventData = { action: entering ? 'enter' : 'exit' };
+    const eventData: CourtChangeEventData =
+      entering && spot ? { action: 'enter', spot } : { action: entering ? 'enter' : 'exit' };
     await pushEvent(get, set, match, playerId, 'court_change', eventData);
     return true;
   },
 
-  confirmSubstitution: async (outIds: string[], inIds: string[]) => {
+  confirmSubstitution: async (outIds: string[], inIds: string[], spots = {}) => {
     const { match, events, getElapsedSeconds } = get();
     if (!match) return [];
     const timestamp = Math.floor(getElapsedSeconds());
@@ -262,7 +273,7 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
         timestamp,
         createdAt: batchStart + nextCreatedAt++,
         eventType: 'court_change',
-        eventData: { action: 'enter' },
+        eventData: spots[id] ? { action: 'enter', spot: spots[id] } : { action: 'enter' },
       } as MatchEvent);
     }
 

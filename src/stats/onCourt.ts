@@ -1,11 +1,17 @@
 import type { MatchEvent } from '../domain/types';
 
-type CourtChangeEvent = Extract<MatchEvent, { eventType: 'court_change' }>;
+export type CourtChangeEvent = Extract<MatchEvent, { eventType: 'court_change' }>;
 
-function courtChangesFor(events: MatchEvent[], playerId?: string): CourtChangeEvent[] {
+/**
+ * Court changes in the order they happened. Ties on match-clock time (every
+ * lineup pick is at 0:00) fall back to when each was recorded: events come back
+ * from the server sorted by their random id, so without this a player taken out
+ * and put back in before kickoff could replay as out.
+ */
+export function courtChangesFor(events: MatchEvent[], playerId?: string): CourtChangeEvent[] {
   return events
     .filter((e): e is CourtChangeEvent => e.eventType === 'court_change' && (!playerId || e.playerId === playerId))
-    .sort((a, b) => a.timestamp - b.timestamp);
+    .sort((a, b) => a.timestamp - b.timestamp || (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
 
 /** Players currently marked as on-court, derived purely from enter/exit events. */

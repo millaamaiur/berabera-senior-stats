@@ -72,6 +72,11 @@ export function PlayerStatsSummary({ player, events, minutesSeconds, defense, ma
             {ownStats.goals > 0 && <StatCard label="Goles" value={ownStats.goals} />}
             <StatCard label="Pérdidas" value={ownStats.turnovers} />
             <StatCard label="Recup." value={ownStats.recoveries} />
+            {/* A keeper's cards are rare, so — like their goals — only shown once there's any. */}
+            {ownStats.yellowCards > 0 && <StatCard label="Amarillas" value={ownStats.yellowCards} />}
+            {ownStats.redCards > 0 && <StatCard label="Rojas" value={ownStats.redCards} />}
+            {ownStats.blueCards > 0 && <StatCard label="Azules" value={ownStats.blueCards} />}
+            {ownStats.exclusions > 0 && <StatCard label="Exclus." value={ownStats.exclusions} />}
           </>
         )}
         <StatCard label="GC en pista" value={defense.goalsAgainst} />

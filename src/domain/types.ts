@@ -92,8 +92,16 @@ export interface TurnoverEventData {
   counter?: boolean;
 }
 
+/**
+ * Where a player is drawn on the scoring screen's court. Layout only: it just
+ * decides where their button sits, and no statistic ever reads it.
+ */
+export type CourtSpot = 'left_wing' | 'left_back' | 'center_back' | 'right_back' | 'right_wing' | 'pivot' | 'goalkeeper';
+
 export interface CourtChangeEventData {
   action: 'enter' | 'exit';
+  /** Only on 'enter'. Absent on events recorded before the court layout existed — those players get a free spot. */
+  spot?: CourtSpot;
 }
 
 interface BaseEvent {

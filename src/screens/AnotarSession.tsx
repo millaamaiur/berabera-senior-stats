@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useLiveMatchStore } from '../stores/useLiveMatchStore';
+import { COURT_LIMITS, useLiveMatchStore } from '../stores/useLiveMatchStore';
 import { useAppData } from '../stores/useAppData';
 import { finishMatch, cancelMatch } from '../stores/matchActions';
 import { computeMatchScore } from '../stats/matchStats';
 import { getCurrentOnCourt } from '../stats/onCourt';
+import { getCourtSpots } from '../stats/courtSpots';
 import { formatClock, formatDate, daysUntil } from '../utils/time';
 import { formatScore } from '../utils/score';
-import { LineupPicker } from '../components/LineupPicker';
-import { OnCourtRoster } from '../components/OnCourtRoster';
-import { SubstitutionModal } from '../components/SubstitutionModal';
-import { ActionPanel } from '../components/ActionPanel';
-import { ActionPanelPlaceholder } from '../components/ActionPanelPlaceholder';
+import { ActionBar, type ActionKind } from '../components/ActionBar';
+import { ActionPanel, type StagedAction } from '../components/ActionPanel';
+import { CourtPanel } from '../components/CourtPanel';
 import { LiveTimeline } from '../components/LiveTimeline';
 import { EditSquadModal } from '../components/EditSquadModal';
 import { EditMatchDateModal } from '../components/EditMatchDateModal';
@@ -20,6 +19,8 @@ import { EventEditorModal, targetFromTimelineRow, type EventEditorTarget } from 
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { PinLock } from '../components/PinLock';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useToast } from '../stores/useToast';
+import type { CourtSpot, Player } from '../domain/types';
 
 export function AnotarSession() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -39,6 +40,7 @@ export function AnotarSession() {
   const getElapsedSeconds = useLiveMatchStore((s) => s.getElapsedSeconds);
   const toggleCourt = useLiveMatchStore((s) => s.toggleCourt);
   const confirmSubstitution = useLiveMatchStore((s) => s.confirmSubstitution);
+  const recordSimpleEvent = useLiveMatchStore((s) => s.recordSimpleEvent);
   const undo = useLiveMatchStore((s) => s.undo);
   const updateEvent = useLiveMatchStore((s) => s.updateEvent);
   const deleteEvent = useLiveMatchStore((s) => s.deleteEvent);
@@ -50,7 +52,8 @@ export function AnotarSession() {
   const matches = useAppData((s) => s.matches);
 
   const [, forceTick] = useState(0);
-  const [showSubs, setShowSubs] = useState(false);
+  const [subsMode, setSubsMode] = useState(false);
+  const [pendingAction, setPendingAction] = useState<StagedAction | null>(null);
   const [showSquad, setShowSquad] = useState(false);
   const [showEditDate, setShowEditDate] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventEditorTarget | null>(null);
@@ -112,6 +115,58 @@ export function AnotarSession() {
   const atFullTime = match.clock.fullTimeReached === true && !match.clock.running;
 
   const lockedPlayerIds = new Set([...onCourtIds, ...events.map((e) => e.playerId)]);
+
+  const courtSpots = new Map<CourtSpot, Player>();
+  for (const [spot, playerId] of getCourtSpots(events, players)) {
+    const player = onCourtPlayers.find((p) => p.id === playerId);
+    if (player) courtSpots.set(spot, player);
+  }
+  const courtMode = !lineupDone ? 'lineup' : subsMode ? 'subs' : 'actions';
+
+  function handleAction(kind: ActionKind) {
+    if (!selectedPlayer) return;
+    if (kind === 'turnover' || kind === 'recovery') {
+      // Nothing else to ask: record it and leave the court ready for the next play.
+      const playerId = selectedPlayer.id;
+      finishAction();
+      void recordSimpleEvent(playerId, kind);
+      return;
+    }
+    setPendingAction(kind);
+  }
+
+  function finishAction() {
+    setPendingAction(null);
+    selectPlayer(null);
+  }
+
+  function toggleSubsMode() {
+    finishAction();
+    setSubsMode((on) => !on);
+  }
+
+  async function fillSpot(spot: CourtSpot, incoming: Player, outgoing: Player | null) {
+    if (!lineupDone) {
+      // Not awaited: the exit is already on screen before it uploads, so the
+      // entry right after it sees the freed place without waiting on the network.
+      const leaving = outgoing ? toggleCourt(outgoing.id) : null;
+      const entered = await toggleCourt(incoming.id, spot);
+      await leaving;
+      if (!entered) {
+        useToast
+          .getState()
+          .show(incoming.position === 'goalkeeper' ? 'Ya hay un portero titular' : `Ya hay ${COURT_LIMITS.player} titulares de campo`);
+      }
+      return;
+    }
+    // The one coming on takes the exact spot of the one going off.
+    const rejected = await confirmSubstitution(outgoing ? [outgoing.id] : [], [incoming.id], { [incoming.id]: spot });
+    if (rejected.length > 0) useToast.getState().show(`${incoming.name} no ha podido entrar: no había hueco libre`);
+  }
+
+  async function clearSpot(player: Player) {
+    await toggleCourt(player.id);
+  }
 
   async function handleFinish() {
     if (!match) return;
@@ -262,26 +317,49 @@ export function AnotarSession() {
       </div>
 
       {lineupDone ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
-          <OnCourtRoster onCourtPlayers={onCourtPlayers} selectedPlayerId={selectedPlayerId} onSelectPlayer={selectPlayer} />
-          <button type="button" onClick={() => setShowSubs(true)} className={btnClass('amber')}>
-            Hacer cambios
-          </button>
-        </div>
+        <ActionBar
+          player={selectedPlayer}
+          activeAction={pendingAction}
+          subsMode={subsMode}
+          onAction={handleAction}
+          onToggleSubs={toggleSubsMode}
+        />
       ) : (
-        <LineupPicker calledPlayers={calledPlayers} onCourtIds={onCourtIds} onToggleCourt={toggleCourt} />
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/5 p-3 ring-1 ring-amber-500/30">
+          <div>
+            <p className="text-lg font-bold text-white">Elige la alineación inicial</p>
+            <p className="text-sm text-slate-400">
+              {startDisabledReason ?? 'Alineación completa · pulsa «Iniciar» cuando empiece el partido'}
+            </p>
+          </div>
+          <span className="rounded-full bg-black/30 px-3 py-1 text-sm font-semibold text-amber-300">
+            Titulares: {onCourtPlayers.filter((p) => p.position === 'player').length}/{COURT_LIMITS.player} +{' '}
+            {onCourtPlayers.filter((p) => p.position === 'goalkeeper').length}/{COURT_LIMITS.goalkeeper} portero
+          </span>
+        </div>
       )}
 
-      <div className={['grid min-h-0 flex-1 grid-cols-2 gap-2 transition-opacity', lineupDone ? '' : 'opacity-50'].join(' ')}>
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
         <div className="min-h-0 overflow-y-auto rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
-          {selectedPlayer ? (
-            <ActionPanel player={selectedPlayer} />
-          ) : lineupDone ? (
-            <ActionPanelPlaceholder />
+          {lineupDone && selectedPlayer && pendingAction ? (
+            <ActionPanel
+              key={`${selectedPlayer.id}-${pendingAction}`}
+              player={selectedPlayer}
+              action={pendingAction}
+              onDone={finishAction}
+              onCancel={() => setPendingAction(null)}
+            />
           ) : (
-            <p className="flex h-full items-center justify-center text-center text-slate-400">
-              {startDisabledReason ?? 'Pulsa "Iniciar" para empezar el partido'}
-            </p>
+            <CourtPanel
+              key={courtMode}
+              mode={courtMode}
+              spots={courtSpots}
+              benchPlayers={benchPlayers}
+              selectedPlayerId={selectedPlayerId}
+              onSelectPlayer={selectPlayer}
+              onFillSpot={fillSpot}
+              onClearSpot={clearSpot}
+            />
           )}
         </div>
         <div className="min-h-0 overflow-y-auto rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
@@ -292,15 +370,6 @@ export function AnotarSession() {
           />
         </div>
       </div>
-
-      {showSubs && (
-        <SubstitutionModal
-          onCourtPlayers={onCourtPlayers}
-          benchPlayers={benchPlayers}
-          onConfirm={confirmSubstitution}
-          onClose={() => setShowSubs(false)}
-        />
-      )}
 
       {showSquad && (
         <EditSquadModal
