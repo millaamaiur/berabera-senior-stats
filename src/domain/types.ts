@@ -98,10 +98,31 @@ export interface TurnoverEventData {
  */
 export type CourtSpot = 'left_wing' | 'left_back' | 'center_back' | 'right_back' | 'right_wing' | 'pivot' | 'goalkeeper';
 
+/** Which way an attack-defense switch went: the phase the team switched to. */
+export type Phase = 'attack' | 'defense';
+
+/**
+ * Two field players who swap every time the team goes from attack to defense
+ * and back (cambio ataque-defensa): the attacker plays attacks, the defender
+ * defences. Kept per match on the scoring device only — the switches
+ * themselves are ordinary court changes, so nothing else needs it.
+ */
+export interface AttackDefensePair {
+  attackerId: string;
+  defenderId: string;
+}
+
 export interface CourtChangeEventData {
   action: 'enter' | 'exit';
   /** Only on 'enter'. Absent on events recorded before the court layout existed — those players get a free spot. */
   spot?: CourtSpot;
+  /**
+   * Set on the court changes of an attack-defense switch, to the phase it
+   * switched to. They still count for minutes and who was on court like any
+   * other, but they aren't substitutions: the timeline shows them apart and
+   * Deshacer leaves them alone.
+   */
+  ad?: Phase;
 }
 
 interface BaseEvent {

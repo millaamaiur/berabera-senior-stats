@@ -7,7 +7,9 @@ const fieldA: Player = { id: 'fieldA', name: 'Field A', position: 'player', numb
 const fieldB: Player = { id: 'fieldB', name: 'Field B', position: 'player', number: 5, active: true };
 const gkA: Player = { id: 'gkA', name: 'GK A', position: 'goalkeeper', number: 1, active: true };
 const gkB: Player = { id: 'gkB', name: 'GK B', position: 'goalkeeper', number: 2, active: true };
-const players = [fieldA, fieldB, gkA, gkB];
+const fieldC: Player = { id: 'fieldC', name: 'Field C', position: 'player', number: 6, active: true };
+const fieldD: Player = { id: 'fieldD', name: 'Field D', position: 'player', number: 7, active: true };
+const players = [fieldA, fieldB, gkA, gkB, fieldC, fieldD];
 
 describe('buildTimeline', () => {
   it('drops the starting lineup (court_change at t=0)', () => {
@@ -43,6 +45,33 @@ describe('buildTimeline', () => {
     const rows = buildTimeline([courtChange('fieldA', 300, 'exit')], players);
     expect(rows).toHaveLength(1);
     expect(rows[0].kind).toBe('single');
+  });
+
+  it('shows one attack-defense switch as a single row, not as substitutions', () => {
+    const events = [
+      courtChange('fieldA', 300, 'exit', 'defense'),
+      courtChange('fieldB', 300, 'enter', 'defense'),
+      courtChange('fieldC', 300, 'exit', 'defense'),
+      courtChange('fieldD', 300, 'enter', 'defense'),
+    ];
+    const rows = buildTimeline(events, players);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'ad_switch', to: 'defense', timestamp: 300 });
+    if (rows[0].kind !== 'ad_switch') throw new Error('expected an ad_switch row');
+    expect(rows[0].playersIn.map((p) => p.id).sort()).toEqual(['fieldB', 'fieldD']);
+    expect(rows[0].playersOut.map((p) => p.id).sort()).toEqual(['fieldA', 'fieldC']);
+  });
+
+  it('never pairs a substitution with an attack-defense change in the same second', () => {
+    const events = [
+      courtChange('fieldA', 300, 'exit', 'defense'),
+      courtChange('fieldB', 300, 'enter', 'defense'),
+      courtChange('fieldC', 300, 'exit'),
+      courtChange('fieldD', 300, 'enter'),
+    ];
+    const rows = buildTimeline(events, players);
+    expect(rows.map((r) => r.kind).sort()).toEqual(['ad_switch', 'substitution']);
+    expect(rows.find((r) => r.kind === 'substitution')).toMatchObject({ playerOut: fieldC, playerIn: fieldD });
   });
 
   it('sorts every row chronologically', () => {

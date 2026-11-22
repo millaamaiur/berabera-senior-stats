@@ -1,12 +1,12 @@
 import type { MatchEvent, Player } from '../domain/types';
-import { buildTimeline, type TimelineRow } from '../stats/timeline';
+import { buildTimeline, describeAttackDefenseSwitch, type EditableTimelineRow } from '../stats/timeline';
 import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 
 interface LiveTimelineProps {
   events: MatchEvent[];
   players: Player[];
-  onRowClick?: (row: TimelineRow) => void;
+  onRowClick?: (row: EditableTimelineRow) => void;
 }
 
 export function LiveTimeline({ events, players, onRowClick }: LiveTimelineProps) {
@@ -18,6 +18,15 @@ export function LiveTimeline({ events, players, onRowClick }: LiveTimelineProps)
       <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {rows.map((row) => {
           const clickable = Boolean(onRowClick);
+          if (row.kind === 'ad_switch') {
+            // Just a trace of when it happened: small, and not a button (switching back undoes it).
+            return (
+              <div key={row.id} className="flex items-center gap-2 px-2 py-0.5 text-xs text-slate-500">
+                <span className="w-12 shrink-0 font-mono">{formatClock(row.timestamp)}</span>
+                <span className="truncate font-semibold">⇄ {describeAttackDefenseSwitch(row)}</span>
+              </div>
+            );
+          }
           if (row.kind === 'substitution') {
             return (
               <button

@@ -20,7 +20,8 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import { PinLock } from '../components/PinLock';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useToast } from '../stores/useToast';
-import type { CourtSpot, Player } from '../domain/types';
+import type { CourtSpot, Phase, Player } from '../domain/types';
+import type { PairView } from '../components/AttackDefenseBar';
 
 export function AnotarSession() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -47,6 +48,9 @@ export function AnotarSession() {
   const updateCalledPlayers = useLiveMatchStore((s) => s.updateCalledPlayers);
   const updateDate = useLiveMatchStore((s) => s.updateDate);
   const syncGlobalData = useLiveMatchStore((s) => s.syncGlobalData);
+  const adPairs = useLiveMatchStore((s) => s.adPairs);
+  const setAdPairs = useLiveMatchStore((s) => s.setAdPairs);
+  const switchAttackDefense = useLiveMatchStore((s) => s.switchAttackDefense);
 
   const players = useAppData((s) => s.players);
   const matches = useAppData((s) => s.matches);
@@ -123,6 +127,38 @@ export function AnotarSession() {
   }
   const courtMode = !lineupDone ? 'lineup' : subsMode ? 'subs' : 'actions';
 
+  // Attack-defense pairs, as players. The court's phase is read off who's on
+  // court: the first pair with exactly one of its two playing says which.
+  const pairs: PairView[] = adPairs.flatMap((p) => {
+    const attacker = calledPlayers.find((pl) => pl.id === p.attackerId);
+    const defender = calledPlayers.find((pl) => pl.id === p.defenderId);
+    return attacker && defender ? [{ attacker, defender }] : [];
+  });
+  const phasePair = pairs.find((p) => onCourtIds.has(p.attacker.id) !== onCourtIds.has(p.defender.id));
+  const phase: Phase | null = phasePair ? (onCourtIds.has(phasePair.attacker.id) ? 'attack' : 'defense') : null;
+  // Someone waiting on the bench for their pair's turn comes on with the switch, not as a substitute.
+  const pairedIds = new Set(pairs.flatMap((p) => [p.attacker.id, p.defender.id]));
+  const pickableBench = lineupDone ? benchPlayers.filter((p) => !pairedIds.has(p.id)) : benchPlayers;
+
+  function createPair(onCourt: Player, partner: Player, role: Phase) {
+    const pair = role === 'attack' ? { attackerId: onCourt.id, defenderId: partner.id } : { attackerId: partner.id, defenderId: onCourt.id };
+    setAdPairs([...adPairs, pair]);
+    useToast.getState().show(`Pareja ${onCourt.number} ⇄ ${partner.number}`);
+  }
+
+  async function removePair(pair: PairView) {
+    const staying = [pair.attacker, pair.defender].find((p) => onCourtIds.has(p.id));
+    const confirmed = await ask({
+      title: `¿Quitar la pareja ${pair.attacker.number} ⇄ ${pair.defender.number}?`,
+      message: staying
+        ? `Dejáis de hacer este cambio. ${staying.name} se queda en pista.`
+        : 'Dejáis de hacer este cambio.',
+      confirmLabel: 'Quitar pareja',
+    });
+    if (!confirmed) return;
+    setAdPairs(adPairs.filter((p) => !(p.attackerId === pair.attacker.id && p.defenderId === pair.defender.id)));
+  }
+
   function handleAction(kind: ActionKind) {
     if (!selectedPlayer) return;
     if (kind === 'turnover' || kind === 'recovery') {
@@ -159,7 +195,16 @@ export function AnotarSession() {
       }
       return;
     }
-    // The one coming on takes the exact spot of the one going off.
+    // The one coming on takes the exact spot of the one going off — and, if
+    // that player was in an attack-defense pair, their place in it too.
+    if (outgoing && pairedIds.has(outgoing.id)) {
+      setAdPairs(
+        adPairs.map((p) => ({
+          attackerId: p.attackerId === outgoing.id ? incoming.id : p.attackerId,
+          defenderId: p.defenderId === outgoing.id ? incoming.id : p.defenderId,
+        }))
+      );
+    }
     const rejected = await confirmSubstitution(outgoing ? [outgoing.id] : [], [incoming.id], { [incoming.id]: spot });
     if (rejected.length > 0) useToast.getState().show(`${incoming.name} no ha podido entrar: no había hueco libre`);
   }
@@ -354,11 +399,18 @@ export function AnotarSession() {
               key={courtMode}
               mode={courtMode}
               spots={courtSpots}
-              benchPlayers={benchPlayers}
+              benchPlayers={pickableBench}
               selectedPlayerId={selectedPlayerId}
               onSelectPlayer={selectPlayer}
               onFillSpot={fillSpot}
               onClearSpot={clearSpot}
+              attackDefense={{
+                pairs,
+                phase,
+                onSwitch: (to) => void switchAttackDefense(to),
+                onTapPair: (pair) => void removePair(pair),
+                onCreatePair: createPair,
+              }}
             />
           )}
         </div>

@@ -1,25 +1,25 @@
 import type { MatchEvent, Player } from '../domain/types';
-import { buildTimeline, type TimelineRow } from '../stats/timeline';
+import { buildTimeline, describeAttackDefenseSwitch, type EditableTimelineRow, type TimelineRow } from '../stats/timeline';
 import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 
 interface CompactTimelineProps {
   events: MatchEvent[];
   players: Player[];
-  onRowClick?: (row: TimelineRow) => void;
+  onRowClick?: (row: EditableTimelineRow) => void;
   /** Keep only rows involving this player — filtered after building, so substitutions still pair correctly. */
   onlyPlayerId?: string;
 }
 
+function involves(row: TimelineRow, playerId: string): boolean {
+  if (row.kind === 'substitution') return row.playerOut.id === playerId || row.playerIn.id === playerId;
+  if (row.kind === 'ad_switch') return [...row.playersIn, ...row.playersOut].some((p) => p.id === playerId);
+  return row.event.playerId === playerId;
+}
+
 /** A narrow timeline for the finished-match detail screen — same data as the full timeline, in less width. */
 export function CompactTimeline({ events, players, onRowClick, onlyPlayerId }: CompactTimelineProps) {
-  const rows = buildTimeline(events, players).filter(
-    (row) =>
-      !onlyPlayerId ||
-      (row.kind === 'substitution'
-        ? row.playerOut.id === onlyPlayerId || row.playerIn.id === onlyPlayerId
-        : row.event.playerId === onlyPlayerId)
-  );
+  const rows = buildTimeline(events, players).filter((row) => !onlyPlayerId || involves(row, onlyPlayerId));
   const rowClass =
     'flex flex-col gap-0.5 rounded-xl bg-white/5 px-2 py-1.5 text-left ring-1 ring-white/10 transition-transform touch-manipulation active:scale-[0.98]';
 
@@ -27,6 +27,14 @@ export function CompactTimeline({ events, players, onRowClick, onlyPlayerId }: C
     <div className="flex flex-col gap-1.5">
       {rows.map((row) => {
         const clickable = Boolean(onRowClick);
+        if (row.kind === 'ad_switch') {
+          return (
+            <div key={row.id} className="flex flex-col gap-0.5 px-2 py-0.5">
+              <span className="font-mono text-[0.6rem] text-slate-500">{formatClock(row.timestamp)}</span>
+              <span className="truncate text-[0.7rem] font-semibold text-slate-500">⇄ {describeAttackDefenseSwitch(row)}</span>
+            </div>
+          );
+        }
         if (row.kind === 'substitution') {
           const content = (
             <>

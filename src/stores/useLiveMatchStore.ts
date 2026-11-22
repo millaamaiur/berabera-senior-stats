@@ -2,21 +2,25 @@ import { create } from 'zustand';
 import { dataProvider } from '../data';
 import { createId } from '../utils/id';
 import type {
+  AttackDefensePair,
   CourtChangeEventData,
   CourtSpot,
   FieldShotEventData,
   GkShotEventData,
   Match,
   MatchEvent,
+  Phase,
   SimpleFieldEventType,
   TurnoverEventData,
 } from '../domain/types';
 import { HALFTIME_SECONDS } from '../domain/types';
 import { elapsedAt, nextPeriodEnd } from '../domain/clock';
-import { getCurrentOnCourt } from '../stats/onCourt';
+import { getCurrentOnCourt, isAttackDefenseChange } from '../stats/onCourt';
+import { getCourtSpots } from '../stats/courtSpots';
 import { useAppData } from './useAppData';
 import { useToast } from './useToast';
 import { withPendingWrites, writeOrQueue } from '../data/offline/queue';
+import { loadSnapshot, saveSnapshot } from '../data/offline/snapshot';
 import { describeEventForToast } from '../utils/eventLabels';
 import { HAPTIC, vibrate } from '../utils/haptics';
 
@@ -28,6 +32,8 @@ interface LiveMatchState {
   events: MatchEvent[];
   selectedPlayerId: string | null;
   loading: boolean;
+  /** This match's attack-defense pairs (at most 2), remembered on this device. */
+  adPairs: AttackDefensePair[];
 
   loadMatch: (matchId: string) => Promise<void>;
   clear: () => void;
@@ -60,6 +66,14 @@ interface LiveMatchState {
     inIds: string[],
     spots?: Partial<Record<string, CourtSpot>>
   ) => Promise<string[]>;
+  setAdPairs: (pairs: AttackDefensePair[]) => void;
+  /**
+   * One tap on ATAQUE / DEFENSA: every pair whose player for the other phase is
+   * on court swaps, all at once and sharing one timestamp, each newcomer on the
+   * spot of the one going off. Recorded as court changes flagged `ad`, so
+   * minutes and who-was-on-court stay exact without a "Cambio" each time.
+   */
+  switchAttackDefense: (to: Phase) => Promise<void>;
   /** `eventData` only for a counterattack turnover; every other simple event carries none. */
   recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType, eventData?: TurnoverEventData) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
@@ -81,11 +95,18 @@ async function persistMatch(match: Match): Promise<void> {
   await writeOrQueue({ collection: 'matches', method: 'upsert', payload: match }, () => dataProvider.matches.upsert(match));
 }
 
+/**
+ * Pairs live with the offline snapshots, so locking the app wipes them along
+ * with everything else it keeps on the device.
+ */
+const adPairsKey = (matchId: string) => `adPairs:${matchId}`;
+
 export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
   match: null,
   events: [],
   selectedPlayerId: null,
   loading: false,
+  adPairs: [],
 
   loadMatch: async (matchId: string) => {
     set({ loading: true });
@@ -115,11 +136,53 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     }
     const wasScheduled = match.status === 'scheduled';
     if (wasScheduled) match = { ...match, status: 'live' };
-    set({ match, events, selectedPlayerId: null, loading: false });
+    set({ match, events, selectedPlayerId: null, loading: false, adPairs: loadSnapshot<AttackDefensePair>(adPairsKey(matchId)) });
     if (wasScheduled) await persistMatch(match);
   },
 
-  clear: () => set({ match: null, events: [], selectedPlayerId: null }),
+  clear: () => set({ match: null, events: [], selectedPlayerId: null, adPairs: [] }),
+
+  setAdPairs: (pairs) => {
+    const { match } = get();
+    if (!match) return;
+    set({ adPairs: pairs });
+    saveSnapshot(adPairsKey(match.id), pairs);
+  },
+
+  switchAttackDefense: async (to) => {
+    const { match, events, adPairs, getElapsedSeconds } = get();
+    if (!match) return;
+    const onCourt = getCurrentOnCourt(events);
+    const players = useAppData.getState().players;
+    const spotOf = new Map([...getCourtSpots(events, players)].map(([spot, id]) => [id, spot]));
+    // A pair only swaps when its player for the other phase is on court and
+    // its player for this one isn't — anything else (both off after a normal
+    // change, say) is left alone rather than guessed at.
+    const swaps = adPairs
+      .map((p) => (to === 'defense' ? { out: p.attackerId, in: p.defenderId } : { out: p.defenderId, in: p.attackerId }))
+      .filter((s) => onCourt.has(s.out) && !onCourt.has(s.in));
+    if (swaps.length === 0) return;
+
+    const timestamp = Math.floor(getElapsedSeconds());
+    const batchStart = Date.now();
+    const newEvents: MatchEvent[] = swaps.flatMap((s, i) => {
+      const spot = spotOf.get(s.out);
+      const exit: CourtChangeEventData = { action: 'exit', ad: to };
+      const enter: CourtChangeEventData = spot ? { action: 'enter', spot, ad: to } : { action: 'enter', ad: to };
+      return [
+        { id: createId('evt'), matchId: match.id, playerId: s.out, timestamp, createdAt: batchStart + 2 * i, eventType: 'court_change', eventData: exit },
+        { id: createId('evt'), matchId: match.id, playerId: s.in, timestamp, createdAt: batchStart + 2 * i + 1, eventType: 'court_change', eventData: enter },
+      ] as MatchEvent[];
+    });
+
+    set({ events: [...get().events, ...newEvents] });
+    const names = swaps.map((s) => players.find((p) => p.id === s.in)?.name ?? '?').join(', ');
+    useToast.getState().show(`${to === 'defense' ? 'Defensa' : 'Ataque'} · entra${swaps.length > 1 ? 'n' : ''} ${names}`);
+    vibrate(HAPTIC.tap);
+    for (const event of newEvents) {
+      await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
+    }
+  },
 
   selectPlayer: (playerId) => set({ selectedPlayerId: playerId }),
 
@@ -311,8 +374,11 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
 
   undo: async () => {
     const { events } = get();
-    if (events.length === 0) return;
-    const last = [...events].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
+    // An attack-defense switch is undone by tapping the other phase, not here:
+    // Deshacer goes back to the last thing actually anotado.
+    const undoable = events.filter((e) => !isAttackDefenseChange(e));
+    if (undoable.length === 0) return;
+    const last = [...undoable].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
     set({ events: events.filter((e) => e.id !== last.id) });
     await writeOrQueue({ collection: 'events', method: 'delete', payload: last.id }, () => dataProvider.events.delete(last.id));
 

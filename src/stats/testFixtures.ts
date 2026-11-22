@@ -43,14 +43,15 @@ export function gkShot(
   } as MatchEvent;
 }
 
-export function courtChange(playerId: string, timestamp: number, action: 'enter' | 'exit'): MatchEvent {
+/** `ad`: part of an attack-defense switch to that phase, rather than a substitution. */
+export function courtChange(playerId: string, timestamp: number, action: 'enter' | 'exit', ad?: 'attack' | 'defense'): MatchEvent {
   return {
     id: makeId(),
     matchId: 'm1',
     playerId,
     timestamp,
     eventType: 'court_change',
-    eventData: { action },
+    eventData: ad ? { action, ad } : { action },
   } as MatchEvent;
 }
 

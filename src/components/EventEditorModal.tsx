@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { MatchEvent, Player, Zone } from '../domain/types';
-import type { TimelineRow } from '../stats/timeline';
+import type { EditableTimelineRow } from '../stats/timeline';
 import { EVENT_LABELS, isCounter } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 import { ShotGrid3x3 } from './ShotGrid3x3';
@@ -11,7 +11,7 @@ export type EventEditorTarget =
   | { kind: 'substitution'; outEvent: MatchEvent; inEvent: MatchEvent; playerOut: Player; playerIn: Player };
 
 /** Turns a timeline row (as rendered) into the shape EventEditorModal needs. */
-export function targetFromTimelineRow(row: TimelineRow, players: Player[]): EventEditorTarget {
+export function targetFromTimelineRow(row: EditableTimelineRow, players: Player[]): EventEditorTarget {
   if (row.kind === 'substitution') {
     return {
       kind: 'substitution',

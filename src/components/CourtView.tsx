@@ -16,7 +16,8 @@ const SPOTS: { spot: CourtSpot; x: number; y: number }[] = [
   { spot: 'goalkeeper', x: 212, y: 470 },
 ];
 
-export type CourtMode = 'lineup' | 'actions' | 'subs';
+/** 'pair': picking the on-court half of a new attack-defense pair. */
+export type CourtMode = 'lineup' | 'actions' | 'subs' | 'pair';
 
 interface CourtViewProps {
   /** Who stands on each spot; a spot missing here is drawn as an empty, tappable hole. */
@@ -24,6 +25,10 @@ interface CourtViewProps {
   mode: CourtMode;
   selectedPlayerId: string | null;
   onTapSpot: (spot: CourtSpot, player: Player | null) => void;
+  /** Each paired player's partner, shown as a small "⇄ 11" on their button. */
+  partnerOf?: Map<string, Player>;
+  /** In 'pair' mode, players who can't be picked (already in a pair). */
+  unavailableIds?: Set<string>;
 }
 
 /**
@@ -31,7 +36,7 @@ interface CourtViewProps {
  * It scales to whatever room the panel has, keeping its proportions, so it
  * fits a phone in landscape as well as a tablet.
  */
-export function CourtView({ spots, mode, selectedPlayerId, onTapSpot }: CourtViewProps) {
+export function CourtView({ spots, mode, selectedPlayerId, onTapSpot, partnerOf, unavailableIds }: CourtViewProps) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center [container-type:size]">
       <div
@@ -74,14 +79,23 @@ export function CourtView({ spots, mode, selectedPlayerId, onTapSpot }: CourtVie
 
         {SPOTS.map(({ spot, x, y }) => {
           const player = spots.get(spot) ?? null;
+          const partner = player ? partnerOf?.get(player.id) : undefined;
+          // Only free field players can start a pair; everyone else sits it out, dimmed.
+          const disabled =
+            mode === 'pair' && (!player || player.position === 'goalkeeper' || Boolean(unavailableIds?.has(player.id)));
           return (
             <button
               key={spot}
               type="button"
               onClick={() => onTapSpot(spot, player)}
-              aria-label={player ? `${player.name}, ${SPOT_LABELS[spot]}` : `${SPOT_LABELS[spot]}: vacío`}
+              disabled={disabled}
+              aria-label={
+                player
+                  ? `${player.name}, ${SPOT_LABELS[spot]}${partner ? `, en pareja con ${partner.name}` : ''}`
+                  : `${SPOT_LABELS[spot]}: vacío`
+              }
               aria-pressed={player ? player.id === selectedPlayerId : undefined}
-              className={chipClass(player, mode, player?.id === selectedPlayerId)}
+              className={chipClass(player, mode, player?.id === selectedPlayerId, disabled)}
               style={{
                 left: `${(x / VIEW.w) * 100}%`,
                 top: `${(y / VIEW.h) * 100}%`,
@@ -95,6 +109,14 @@ export function CourtView({ spots, mode, selectedPlayerId, onTapSpot }: CourtVie
                   <span className="w-full truncate px-1 text-[length:clamp(10px,2.3cqw,15px)] font-semibold opacity-80">
                     {player.name}
                   </span>
+                  {partner && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -top-[14%] -right-[6%] rounded-full bg-[#0f172a] px-[0.5em] py-[0.1em] text-[length:clamp(10px,2.2cqw,13px)] font-extrabold text-[#fcd34d] ring-1 ring-[#ffffff]/25"
+                    >
+                      ⇄ {partner.number}
+                    </span>
+                  )}
                 </>
               ) : (
                 <>
@@ -112,9 +134,11 @@ export function CourtView({ spots, mode, selectedPlayerId, onTapSpot }: CourtVie
   );
 }
 
-function chipClass(player: Player | null, mode: CourtMode, selected: boolean): string {
-  const base =
-    'absolute flex flex-col items-center justify-center gap-[2%] rounded-2xl shadow-md transition-transform touch-manipulation active:scale-95';
+function chipClass(player: Player | null, mode: CourtMode, selected: boolean, disabled: boolean): string {
+  const base = [
+    'absolute flex flex-col items-center justify-center gap-[2%] rounded-2xl shadow-md transition-transform touch-manipulation',
+    disabled ? 'opacity-35' : 'active:scale-95',
+  ].join(' ');
   if (!player) {
     return `${base} border-2 border-dashed border-white/30 bg-black/10 text-slate-400 shadow-none`;
   }
@@ -126,7 +150,15 @@ function chipClass(player: Player | null, mode: CourtMode, selected: boolean): s
     : player.position === 'goalkeeper'
       ? 'bg-[#38bdf8] text-slate-900 ring-1 ring-sky-500/40'
       : 'bg-[#fff] text-emerald-900 ring-1 ring-emerald-700/30';
-  // While making changes, every player reads as "tap to take me off".
-  const subs = mode === 'subs' && !selected ? 'outline-2 outline-offset-2 outline-dashed outline-rose-400' : '';
-  return [base, look, subs].join(' ');
+  // While making changes, every player reads as "tap to take me off"; while
+  // starting a pair, every pickable one is marked in amber.
+  const marked =
+    selected || disabled
+      ? ''
+      : mode === 'subs'
+        ? 'outline-2 outline-offset-2 outline-dashed outline-rose-400'
+        : mode === 'pair'
+          ? 'outline-2 outline-offset-2 outline-dashed outline-amber-500'
+          : '';
+  return [base, look, marked].join(' ');
 }

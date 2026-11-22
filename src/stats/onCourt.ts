@@ -14,6 +14,11 @@ export function courtChangesFor(events: MatchEvent[], playerId?: string): CourtC
     .sort((a, b) => a.timestamp - b.timestamp || (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
 
+/** True for the court changes of an attack-defense switch (see CourtChangeEventData.ad). */
+export function isAttackDefenseChange(event: MatchEvent): boolean {
+  return event.eventType === 'court_change' && event.eventData.ad !== undefined;
+}
+
 /** Players currently marked as on-court, derived purely from enter/exit events. */
 export function getCurrentOnCourt(events: MatchEvent[]): Set<string> {
   const onCourt = new Set<string>();
