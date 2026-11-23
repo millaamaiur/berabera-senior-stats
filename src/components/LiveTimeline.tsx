@@ -1,5 +1,5 @@
 import type { MatchEvent, Player } from '../domain/types';
-import { buildTimeline, describeAttackDefenseSwitch, type EditableTimelineRow } from '../stats/timeline';
+import { buildTimeline, describeAttackDefenseSwitch, describeSuspensionRow, type EditableTimelineRow } from '../stats/timeline';
 import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 
@@ -18,12 +18,15 @@ export function LiveTimeline({ events, players, onRowClick }: LiveTimelineProps)
       <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {rows.map((row) => {
           const clickable = Boolean(onRowClick);
-          if (row.kind === 'ad_switch') {
-            // Just a trace of when it happened: small, and not a button (switching back undoes it).
+          if (row.kind === 'ad_switch' || row.kind === 'excl_back' || row.kind === 'excl_cover') {
+            // Just a trace of when it happened: small, and not a button (switching
+            // back undoes a switch; a suspension goes with its 2 minutos row).
             return (
               <div key={row.id} className="flex items-center gap-2 px-2 py-0.5 text-xs text-slate-500">
                 <span className="w-12 shrink-0 font-mono">{formatClock(row.timestamp)}</span>
-                <span className="truncate font-semibold">⇄ {describeAttackDefenseSwitch(row)}</span>
+                <span className="truncate font-semibold">
+                  {row.kind === 'ad_switch' ? `⇄ ${describeAttackDefenseSwitch(row)}` : describeSuspensionRow(row)}
+                </span>
               </div>
             );
           }

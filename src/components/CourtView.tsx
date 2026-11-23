@@ -29,6 +29,16 @@ interface CourtViewProps {
   partnerOf?: Map<string, Player>;
   /** In 'pair' mode, players who can't be picked (already in a pair). */
   unavailableIds?: Set<string>;
+  /** Spots left empty by a running suspension, drawn as its countdown instead of a hole. */
+  suspendedSpots?: Map<CourtSpot, SuspendedSpot>;
+}
+
+export interface SuspendedSpot {
+  /** "7 · FUERA", "7 · EXPULSADO", "VUELVE 14"… */
+  label: string;
+  /** "1:42" */
+  remaining: string;
+  ariaLabel: string;
 }
 
 /**
@@ -36,7 +46,15 @@ interface CourtViewProps {
  * It scales to whatever room the panel has, keeping its proportions, so it
  * fits a phone in landscape as well as a tablet.
  */
-export function CourtView({ spots, mode, selectedPlayerId, onTapSpot, partnerOf, unavailableIds }: CourtViewProps) {
+export function CourtView({
+  spots,
+  mode,
+  selectedPlayerId,
+  onTapSpot,
+  partnerOf,
+  unavailableIds,
+  suspendedSpots,
+}: CourtViewProps) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center [container-type:size]">
       <div
@@ -79,6 +97,33 @@ export function CourtView({ spots, mode, selectedPlayerId, onTapSpot, partnerOf,
 
         {SPOTS.map(({ spot, x, y }) => {
           const player = spots.get(spot) ?? null;
+          const box = {
+            left: `${(x / VIEW.w) * 100}%`,
+            top: `${(y / VIEW.h) * 100}%`,
+            width: `${(CHIP.w / VIEW.w) * 100}%`,
+            height: `${(CHIP.h / VIEW.h) * 100}%`,
+          };
+          const suspended = !player ? suspendedSpots?.get(spot) : undefined;
+          if (suspended) {
+            // Nobody can fill it until the 2 minutes are up, so it isn't a button you can press.
+            return (
+              <button
+                key={spot}
+                type="button"
+                disabled
+                aria-label={suspended.ariaLabel}
+                className="absolute flex flex-col items-center justify-center gap-[2%] rounded-2xl border-2 border-dashed border-rose-400 bg-rose-500/15 text-rose-300"
+                style={box}
+              >
+                <span className="w-full truncate px-1 text-[length:clamp(9px,2.1cqw,13px)] font-bold tracking-wide">
+                  {suspended.label}
+                </span>
+                <span className="font-mono text-[length:clamp(15px,4.2cqw,26px)] leading-none font-extrabold text-white">
+                  {suspended.remaining}
+                </span>
+              </button>
+            );
+          }
           const partner = player ? partnerOf?.get(player.id) : undefined;
           // Only free field players can start a pair; everyone else sits it out, dimmed.
           const disabled =
@@ -96,12 +141,7 @@ export function CourtView({ spots, mode, selectedPlayerId, onTapSpot, partnerOf,
               }
               aria-pressed={player ? player.id === selectedPlayerId : undefined}
               className={chipClass(player, mode, player?.id === selectedPlayerId, disabled)}
-              style={{
-                left: `${(x / VIEW.w) * 100}%`,
-                top: `${(y / VIEW.h) * 100}%`,
-                width: `${(CHIP.w / VIEW.w) * 100}%`,
-                height: `${(CHIP.h / VIEW.h) * 100}%`,
-              }}
+              style={box}
             >
               {player ? (
                 <>

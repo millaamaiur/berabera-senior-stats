@@ -3,6 +3,8 @@ import type { Match } from '../domain/types';
 import { createId } from '../utils/id';
 import { useAppData, activeSeason } from './useAppData';
 import { writeOrQueue } from '../data/offline/queue';
+import { removeSnapshot } from '../data/offline/snapshot';
+import { adPairsKey } from './useLiveMatchStore';
 
 export interface NewMatchInput {
   opponent: string;
@@ -57,6 +59,7 @@ export async function deleteMatch(id: string): Promise<void> {
     matches: s.matches.filter((m) => m.id !== id),
     events: s.events.filter((e) => e.matchId !== id),
   }));
+  removeSnapshot(adPairsKey(id));
   await writeOrQueue({ collection: 'matches', method: 'delete', payload: id }, () => dataProvider.matches.delete(id));
 }
 
@@ -80,6 +83,8 @@ export async function cancelMatch(match: Match): Promise<void> {
     matches: s.matches.map((m) => (m.id === updated.id ? updated : m)),
     events: s.events.filter((e) => e.matchId !== match.id),
   }));
+  // As if it had never started: no attack-defense pairs either.
+  removeSnapshot(adPairsKey(match.id));
   for (const event of eventsToDelete) {
     await writeOrQueue({ collection: 'events', method: 'delete', payload: event.id }, () => dataProvider.events.delete(event.id));
   }

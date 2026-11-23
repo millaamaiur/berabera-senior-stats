@@ -6,6 +6,8 @@ import { finishMatch, cancelMatch } from '../stores/matchActions';
 import { computeMatchScore } from '../stats/matchStats';
 import { getCurrentOnCourt } from '../stats/onCourt';
 import { getCourtSpots } from '../stats/courtSpots';
+import { activeSuspensions, blockedPlayerIds, getSuspensions, returnerFor } from '../stats/suspensions';
+import type { SuspendedSpot } from '../components/CourtView';
 import { formatClock, formatDate, daysUntil } from '../utils/time';
 import { formatScore } from '../utils/score';
 import { ActionBar, type ActionKind } from '../components/ActionBar';
@@ -38,6 +40,7 @@ export function AnotarSession() {
   const startClock = useLiveMatchStore((s) => s.startClock);
   const pauseClock = useLiveMatchStore((s) => s.pauseClock);
   const checkPeriodEnd = useLiveMatchStore((s) => s.checkPeriodEnd);
+  const checkSuspensions = useLiveMatchStore((s) => s.checkSuspensions);
   const getElapsedSeconds = useLiveMatchStore((s) => s.getElapsedSeconds);
   const toggleCourt = useLiveMatchStore((s) => s.toggleCourt);
   const confirmSubstitution = useLiveMatchStore((s) => s.confirmSubstitution);
@@ -77,10 +80,18 @@ export function AnotarSession() {
     const interval = setInterval(() => {
       forceTick((t) => t + 1);
       checkPeriodEnd();
+      checkSuspensions();
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.clock.running]);
+
+  // Opening a match whose 2 minutes ran out meanwhile (app closed, device
+  // restarted) brings the player back at once, without waiting for the clock.
+  useEffect(() => {
+    if (match) void checkSuspensions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.id]);
 
   if (!unlocked) {
     return <PinLock message="Introduce el PIN para anotar este partido" />;
@@ -136,9 +147,43 @@ export function AnotarSession() {
   });
   const phasePair = pairs.find((p) => onCourtIds.has(p.attacker.id) !== onCourtIds.has(p.defender.id));
   const phase: Phase | null = phasePair ? (onCourtIds.has(phasePair.attacker.id) ? 'attack' : 'defense') : null;
+  // Suspensions: a running one shows its countdown on the spot it left
+  // empty; nobody serving one (or sent off) can be brought on meanwhile.
+  const now = Math.floor(getElapsedSeconds());
+  const suspensions = getSuspensions(events);
+  const running = activeSuspensions(suspensions, now);
+  const blocked = blockedPlayerIds(suspensions, now);
+  const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? '—';
+  const numberOf = (id: string) => players.find((p) => p.id === id)?.number ?? '';
+  const suspendedSpots = new Map<CourtSpot, SuspendedSpot>();
+  for (const s of running) {
+    if (!s.spot) continue;
+    const remaining = formatClock(s.end - now);
+    // Whoever will actually come back — with attack-defense pairs, maybe not who left.
+    const returner = returnerFor(s, adPairs, onCourtIds);
+    const label =
+      s.autoReturn && returner !== s.excludedId
+        ? `VUELVE ${numberOf(returner)}`
+        : `${numberOf(s.excludedId)} · ${s.permanent ? 'EXPULSADO' : 'FUERA'}`;
+    suspendedSpots.set(s.spot, {
+      label,
+      remaining,
+      ariaLabel: s.autoReturn ? `${nameOf(returner)} vuelve en ${remaining}` : `Hueco libre en ${remaining}`,
+    });
+  }
+  const soonest = running[0] ? [...running].sort((a, b) => a.end - b.end)[0] : undefined;
+  const fieldOnCourt = onCourtPlayers.filter((p) => p.position === 'player').length;
+  const suspensionHint = soonest
+    ? `Jugáis con ${fieldOnCourt} de campo · ${
+        soonest.autoReturn ? `vuelve ${nameOf(returnerFor(soonest, adPairs, onCourtIds))}` : 'hueco libre'
+      } en ${formatClock(soonest.end - now)}`
+    : undefined;
+
   // Someone waiting on the bench for their pair's turn comes on with the switch, not as a substitute.
   const pairedIds = new Set(pairs.flatMap((p) => [p.attacker.id, p.defender.id]));
-  const pickableBench = lineupDone ? benchPlayers.filter((p) => !pairedIds.has(p.id)) : benchPlayers;
+  const pickableBench = (lineupDone ? benchPlayers.filter((p) => !pairedIds.has(p.id)) : benchPlayers).filter(
+    (p) => !blocked.has(p.id)
+  );
 
   function createPair(onCourt: Player, partner: Player, role: Phase) {
     const pair = role === 'attack' ? { attackerId: onCourt.id, defenderId: partner.id } : { attackerId: partner.id, defenderId: onCourt.id };
@@ -393,6 +438,8 @@ export function AnotarSession() {
               action={pendingAction}
               onDone={finishAction}
               onCancel={() => setPendingAction(null)}
+              benchGoalkeepers={pickableBench.filter((p) => p.position === 'goalkeeper')}
+              courtFieldPlayers={onCourtPlayers.filter((p) => p.position === 'player')}
             />
           ) : (
             <CourtPanel
@@ -411,6 +458,8 @@ export function AnotarSession() {
                 onTapPair: (pair) => void removePair(pair),
                 onCreatePair: createPair,
               }}
+              suspendedSpots={suspendedSpots}
+              suspensionHint={suspensionHint}
             />
           )}
         </div>

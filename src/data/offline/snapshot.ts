@@ -20,6 +20,15 @@ export function clearSnapshots(): void {
   }
 }
 
+/** Drops one stored collection (say, a deleted match's attack-defense pairs). */
+export function removeSnapshot(key: string): void {
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch {
+    // storage unavailable — nothing was stored there either.
+  }
+}
+
 export function loadSnapshot<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(PREFIX + key);

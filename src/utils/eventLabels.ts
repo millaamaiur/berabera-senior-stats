@@ -40,6 +40,9 @@ export function describeEventDetail(event: MatchEvent): string | null {
       return counterPart ? 'Contraataque' : null;
     case 'court_change':
       return event.eventData.action === 'enter' ? 'Entra a pista' : 'Sale de pista';
+    case 'exclusion_2min':
+      // The 3rd one of the same player sends him off for the rest of the match.
+      return event.eventData?.suspension?.permanent ? 'Descalificado (3ª)' : null;
     default:
       return null;
   }

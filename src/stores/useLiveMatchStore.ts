@@ -11,9 +11,11 @@ import type {
   MatchEvent,
   Phase,
   SimpleFieldEventType,
+  SuspensionEventType,
   TurnoverEventData,
 } from '../domain/types';
 import { HALFTIME_SECONDS } from '../domain/types';
+import { blockedPlayerIds, exclusionCount, getSuspensions, returnerFor, suspensionGroup } from '../stats/suspensions';
 import { elapsedAt, nextPeriodEnd } from '../domain/clock';
 import { getCurrentOnCourt, isAttackDefenseChange } from '../stats/onCourt';
 import { getCourtSpots } from '../stats/courtSpots';
@@ -74,6 +76,24 @@ interface LiveMatchState {
    * minutes and who-was-on-court stay exact without a "Cambio" each time.
    */
   switchAttackDefense: (to: Phase) => Promise<void>;
+  /**
+   * A 2 minutos / roja / azul for a player on court: records it and takes them
+   * off for the 2 minutes, in one batch. For the goalkeeper, `cover` brings
+   * another keeper on and takes off the field player who makes room (the one
+   * whose spot then counts down instead). A 3rd 2 minutos counts as a
+   * disqualification.
+   */
+  recordSuspension: (
+    playerId: string,
+    eventType: SuspensionEventType,
+    cover?: { keeperInId: string; fieldOutId: string }
+  ) => Promise<void>;
+  /**
+   * Brings back whoever's 2 minutes are up (at the exact second they ended),
+   * and tells once when a sent-off player's spot can be filled again. Called
+   * every second the clock runs, and once on opening the match.
+   */
+  checkSuspensions: () => Promise<void>;
   /** `eventData` only for a counterattack turnover; every other simple event carries none. */
   recordSimpleEvent: (playerId: string, eventType: SimpleFieldEventType, eventData?: TurnoverEventData) => Promise<void>;
   recordShot: (playerId: string, eventData: FieldShotEventData) => Promise<void>;
@@ -99,7 +119,22 @@ async function persistMatch(match: Match): Promise<void> {
  * Pairs live with the offline snapshots, so locking the app wipes them along
  * with everything else it keeps on the device.
  */
-const adPairsKey = (matchId: string) => `adPairs:${matchId}`;
+export const adPairsKey = (matchId: string) => `adPairs:${matchId}`;
+
+/** Sent-off spots already announced as free this session, so the toast says it once. */
+const announcedFreeSpots = new Set<string>();
+
+async function addEvents(newEvents: MatchEvent[]): Promise<void> {
+  for (const event of newEvents) {
+    await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
+  }
+}
+
+async function removeEvents(ids: string[]): Promise<void> {
+  for (const id of ids) {
+    await writeOrQueue({ collection: 'events', method: 'delete', payload: id }, () => dataProvider.events.delete(id));
+  }
+}
 
 export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
   match: null,
@@ -157,11 +192,21 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const spotOf = new Map([...getCourtSpots(events, players)].map(([spot, id]) => [id, spot]));
     // A pair only swaps when its player for the other phase is on court and
     // its player for this one isn't — anything else (both off after a normal
-    // change, say) is left alone rather than guessed at.
+    // change, say) is left alone rather than guessed at. Nobody serving a
+    // suspension comes on this way either.
+    const blocked = blockedPlayerIds(getSuspensions(events), Math.floor(getElapsedSeconds()));
     const swaps = adPairs
       .map((p) => (to === 'defense' ? { out: p.attackerId, in: p.defenderId } : { out: p.defenderId, in: p.attackerId }))
-      .filter((s) => onCourt.has(s.out) && !onCourt.has(s.in));
-    if (swaps.length === 0) return;
+      .filter((s) => onCourt.has(s.out) && !onCourt.has(s.in) && !blocked.has(s.in));
+    if (swaps.length === 0) {
+      // Say why a tap changed nothing when it's a suspension holding a pair back.
+      const held = adPairs.flatMap((p) => [p.attackerId, p.defenderId]).filter((id) => blocked.has(id));
+      if (held.length > 0) {
+        const heldNames = held.map((id) => players.find((p) => p.id === id)?.name ?? '?').join(', ');
+        useToast.getState().show(`Nadie cambia · ${heldNames} está${held.length > 1 ? 'n' : ''} excluido${held.length > 1 ? 's' : ''}`);
+      }
+      return;
+    }
 
     const timestamp = Math.floor(getElapsedSeconds());
     const batchStart = Date.now();
@@ -179,9 +224,124 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     const names = swaps.map((s) => players.find((p) => p.id === s.in)?.name ?? '?').join(', ');
     useToast.getState().show(`${to === 'defense' ? 'Defensa' : 'Ataque'} · entra${swaps.length > 1 ? 'n' : ''} ${names}`);
     vibrate(HAPTIC.tap);
-    for (const event of newEvents) {
-      await writeOrQueue({ collection: 'events', method: 'add', payload: event }, () => dataProvider.events.add(event));
+    await addEvents(newEvents);
+  },
+
+  recordSuspension: async (playerId, eventType, cover) => {
+    const { match, events, getElapsedSeconds } = get();
+    if (!match) return;
+    const players = useAppData.getState().players;
+    const player = players.find((p) => p.id === playerId);
+    const name = player?.name ?? '—';
+    const onCourt = getCurrentOnCourt(events);
+    const timestamp = Math.floor(getElapsedSeconds());
+    const createdAt = Date.now();
+    const rootId = createId('evt');
+
+    // Off court (or no such player): nothing to take off, so just count it as always.
+    if (!player || !onCourt.has(playerId)) {
+      await pushEvent(get, set, match, playerId, eventType, undefined);
+      return;
     }
+
+    const third = eventType === 'exclusion_2min' && exclusionCount(events, playerId) >= 2;
+    const permanent = eventType !== 'exclusion_2min' || third;
+    const spotOf = new Map([...getCourtSpots(events, players)].map(([spot, id]) => [id, spot]));
+    const keeperCovered = player.position === 'goalkeeper' && cover && onCourt.has(cover.fieldOutId);
+    // With a new keeper in goal, the spot left empty is the field player's,
+    // and he is the one who comes back — even if the keeper was sent off.
+    const outId = keeperCovered ? cover.fieldOutId : playerId;
+    const autoReturn = keeperCovered ? true : !permanent;
+    const spot = spotOf.get(outId);
+
+    let offset = 0;
+    const linked = (who: string, data: CourtChangeEventData): MatchEvent =>
+      ({
+        id: createId('evt'),
+        matchId: match.id,
+        playerId: who,
+        timestamp,
+        createdAt: createdAt + ++offset,
+        eventType: 'court_change',
+        eventData: data,
+      }) as MatchEvent;
+
+    const root = {
+      id: rootId,
+      matchId: match.id,
+      playerId,
+      timestamp,
+      createdAt,
+      eventType,
+      eventData: { suspension: { outId, ...(spot ? { spot } : {}), autoReturn, permanent } },
+    } as MatchEvent;
+    const newEvents: MatchEvent[] = [root, linked(playerId, { action: 'exit', excl: rootId })];
+    if (keeperCovered) {
+      newEvents.push(
+        linked(cover.keeperInId, { action: 'enter', spot: 'goalkeeper', excl: rootId }),
+        linked(cover.fieldOutId, { action: 'exit', excl: rootId })
+      );
+    }
+
+    set({ events: [...get().events, ...newEvents] });
+    useToast
+      .getState()
+      .show(
+        third
+          ? `3ª exclusión: ${name} descalificado`
+          : eventType === 'exclusion_2min'
+            ? `${name} · 2 minutos fuera`
+            : `${eventType === 'card_red' ? 'Roja' : 'Azul'} · ${name} no vuelve`
+      );
+    vibrate(HAPTIC.tap);
+    await addEvents(newEvents);
+  },
+
+  checkSuspensions: async () => {
+    const { match, events, adPairs, getElapsedSeconds } = get();
+    if (!match) return;
+    const now = Math.floor(getElapsedSeconds());
+    const players = useAppData.getState().players;
+    const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? '—';
+    const onCourt = getCurrentOnCourt(events);
+    const fieldOnCourt = players.filter((p) => onCourt.has(p.id) && p.position === 'player').length;
+    const suspensions = getSuspensions(events);
+    const blocked = blockedPlayerIds(suspensions, now);
+
+    const backEvents: MatchEvent[] = [];
+    let freeField = COURT_LIMITS.player - fieldOnCourt;
+    for (const s of suspensions) {
+      if (now < s.end || s.returned) continue;
+      if (!s.autoReturn) {
+        if (!announcedFreeSpots.has(s.rootId)) {
+          announcedFreeSpots.add(s.rootId);
+          useToast.getState().show(`Ya podéis volver a ser 6 · toca el hueco de ${nameOf(s.excludedId)}`);
+        }
+        continue;
+      }
+      const returner = returnerFor(s, adPairs, onCourt);
+      const returning = players.find((p) => p.id === returner);
+      // Someone already filled the gap (or he's back some other way): nothing to do.
+      if (!returning || onCourt.has(returner) || (returning.position === 'player' && freeField <= 0)) continue;
+      if (blocked.has(returner) && returner !== s.outId) continue;
+      if (returning.position === 'player') freeField--;
+      backEvents.push({
+        id: createId('evt'),
+        matchId: match.id,
+        playerId: returner,
+        // The exact second the 2 minutes ended, however late this check runs.
+        timestamp: s.end,
+        createdAt: Date.now() + backEvents.length,
+        eventType: 'court_change',
+        eventData: { action: 'enter', ...(s.spot ? { spot: s.spot } : {}), excl: s.rootId, back: true },
+      } as MatchEvent);
+    }
+    if (backEvents.length === 0) return;
+
+    set({ events: [...get().events, ...backEvents] });
+    useToast.getState().show(`Vuelve ${backEvents.map((e) => nameOf(e.playerId)).join(' y ')} · fin de los 2 minutos`);
+    vibrate(HAPTIC.tap);
+    await addEvents(backEvents);
   },
 
   selectPlayer: (playerId) => set({ selectedPlayerId: playerId }),
@@ -374,17 +534,24 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
 
   undo: async () => {
     const { events } = get();
-    // An attack-defense switch is undone by tapping the other phase, not here:
-    // Deshacer goes back to the last thing actually anotado.
-    const undoable = events.filter((e) => !isAttackDefenseChange(e));
+    // An attack-defense switch is undone by tapping the other phase, and the
+    // return after 2 minutos happens on its own, so Deshacer skips both: it
+    // goes back to the last thing actually anotado.
+    const undoable = events.filter(
+      (e) => !isAttackDefenseChange(e) && !(e.eventType === 'court_change' && e.eventData.back)
+    );
     if (undoable.length === 0) return;
-    const last = [...undoable].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
-    set({ events: events.filter((e) => e.id !== last.id) });
-    await writeOrQueue({ collection: 'events', method: 'delete', payload: last.id }, () => dataProvider.events.delete(last.id));
+    const latest = [...undoable].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
+    // A suspension goes as one: the 2 minutos with its exit, keeper change and return.
+    const group = suspensionGroup(events, latest.id);
+    const root = group.find((e) => e.eventType !== 'court_change') ?? latest;
+    const ids = new Set(group.map((e) => e.id));
+    set({ events: events.filter((e) => !ids.has(e.id)) });
 
-    const playerName = useAppData.getState().players.find((p) => p.id === last.playerId)?.name;
-    useToast.getState().show(`Deshecho: ${describeEventForToast(last, playerName ?? '—')}`);
+    const playerName = useAppData.getState().players.find((p) => p.id === root.playerId)?.name;
+    useToast.getState().show(`Deshecho: ${describeEventForToast(root, playerName ?? '—')}`);
     vibrate(HAPTIC.undo);
+    await removeEvents([...ids]);
   },
 
   updateEvent: async (event: MatchEvent) => {
@@ -395,8 +562,10 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
 
   deleteEvent: async (id: string) => {
     const { events } = get();
-    set({ events: events.filter((e) => e.id !== id) });
-    await writeOrQueue({ collection: 'events', method: 'delete', payload: id }, () => dataProvider.events.delete(id));
+    const ids = new Set(suspensionGroup(events, id).map((e) => e.id));
+    if (ids.size === 0) ids.add(id);
+    set({ events: events.filter((e) => !ids.has(e.id)) });
+    await removeEvents([...ids]);
   },
 
   syncGlobalData: async () => {

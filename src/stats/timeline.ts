@@ -13,10 +13,18 @@ export type TimelineRow =
     }
   | { kind: 'single'; id: string; timestamp: number; event: MatchEvent }
   /** One tap on ATAQUE / DEFENSA: every pair that swapped at that moment. */
-  | { kind: 'ad_switch'; id: string; timestamp: number; to: Phase; playersIn: Player[]; playersOut: Player[] };
+  | { kind: 'ad_switch'; id: string; timestamp: number; to: Phase; playersIn: Player[]; playersOut: Player[] }
+  /** The automatic return once a player's 2 minutes are up. */
+  | { kind: 'excl_back'; id: string; timestamp: number; player: Player }
+  /** Another keeper in goal while ours serves 2 minutos, and the field player who made room. */
+  | { kind: 'excl_cover'; id: string; timestamp: number; playerIn: Player; playerOut?: Player };
 
-/** Rows that can be opened in the event editor — an attack-defense switch is undone by switching back instead. */
-export type EditableTimelineRow = Exclude<TimelineRow, { kind: 'ad_switch' }>;
+/**
+ * Rows that can be opened in the event editor. An attack-defense switch is
+ * undone by switching back, and a suspension's court changes go with its
+ * 2 minutos / roja / azul row.
+ */
+export type EditableTimelineRow = Extract<TimelineRow, { kind: 'single' | 'substitution' }>;
 
 /**
  * Builds the display rows for a match's event timeline, chronological (ascending):
@@ -30,7 +38,10 @@ export type EditableTimelineRow = Exclude<TimelineRow, { kind: 'ad_switch' }>;
  */
 export function buildTimeline(events: MatchEvent[], players: Player[]): TimelineRow[] {
   const playerById = new Map(players.map((p) => [p.id, p]));
-  const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id));
+  // Same second: in the order they were recorded (ids are random, so they're only a last resort).
+  const sorted = [...events].sort(
+    (a, b) => a.timestamp - b.timestamp || (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id)
+  );
   const relevant = sorted.filter((e) => !(e.eventType === 'court_change' && e.timestamp === 0));
 
   const rows: TimelineRow[] = [];
@@ -38,6 +49,35 @@ export function buildTimeline(events: MatchEvent[], players: Player[]): Timeline
 
   for (const event of relevant) {
     if (consumed.has(event.id)) continue;
+
+    // A suspension's own court changes: the exit is already told by its
+    // 2 minutos / roja / azul row, so only the return and a keeper change show.
+    if (event.eventType === 'court_change' && event.eventData.excl) {
+      consumed.add(event.id);
+      const player = playerById.get(event.playerId);
+      const rootId = event.eventData.excl;
+      if (player && event.eventData.back) {
+        rows.push({ kind: 'excl_back', id: event.id, timestamp: event.timestamp, player });
+      } else if (player && event.eventData.action === 'enter') {
+        const excludedId = events.find((e) => e.id === rootId)?.playerId;
+        const madeRoom = relevant.find(
+          (o) =>
+            o.eventType === 'court_change' &&
+            o.eventData.excl === rootId &&
+            o.eventData.action === 'exit' &&
+            !o.eventData.back &&
+            o.playerId !== excludedId
+        );
+        rows.push({
+          kind: 'excl_cover',
+          id: event.id,
+          timestamp: event.timestamp,
+          playerIn: player,
+          playerOut: madeRoom ? playerById.get(madeRoom.playerId) : undefined,
+        });
+      }
+      continue;
+    }
 
     if (event.eventType === 'court_change' && event.eventData.ad) {
       const to: Phase = event.eventData.ad;
@@ -105,6 +145,12 @@ export function buildTimeline(events: MatchEvent[], players: Player[]): Timeline
   }
 
   return rows;
+}
+
+/** The small line a suspension's return or keeper change gets in a timeline. */
+export function describeSuspensionRow(row: Extract<TimelineRow, { kind: 'excl_back' | 'excl_cover' }>): string {
+  if (row.kind === 'excl_back') return `Vuelve ${row.player.name} · fin de los 2 minutos`;
+  return `Entra ${row.playerIn.name} a la portería${row.playerOut ? ` · sale ${row.playerOut.name}` : ''}`;
 }
 
 /** "Defensa · entran Ane, Leire" — the one line an attack-defense switch gets in a timeline. */

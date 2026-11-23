@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { CourtSpot, Phase, Player } from '../domain/types';
 import { positionForSpot, SPOT_LABELS } from '../stats/courtSpots';
 import { AttackDefenseBar, MAX_AD_PAIRS, type PairView } from './AttackDefenseBar';
-import { CourtView, type CourtMode } from './CourtView';
+import { CourtView, type CourtMode, type SuspendedSpot } from './CourtView';
 
 /** What the court needs to know about attack-defense pairs; only used while recording ('actions'). */
 export interface AttackDefenseProps {
@@ -26,6 +26,10 @@ interface CourtPanelProps {
   /** Lineup only: leaves a spot empty again. */
   onClearSpot: (player: Player) => Promise<void>;
   attackDefense?: AttackDefenseProps;
+  /** Spots counting down a suspension. */
+  suspendedSpots?: Map<CourtSpot, SuspendedSpot>;
+  /** "Jugáis con 5 de campo · vuelve Ane en 1:42", while any suspension runs. */
+  suspensionHint?: string;
 }
 
 /** Starting a pair: the on-court player first, then their partner, then (first pair only) who attacks. */
@@ -45,6 +49,8 @@ export function CourtPanel({
   onFillSpot,
   onClearSpot,
   attackDefense,
+  suspendedSpots,
+  suspensionHint,
 }: CourtPanelProps) {
   const [pickingSpot, setPickingSpot] = useState<CourtSpot | null>(null);
   const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -192,6 +198,7 @@ export function CourtPanel({
           onTapSpot={handleTapSpot}
           partnerOf={partnerOf}
           unavailableIds={pairedIds}
+          suspendedSpots={suspendedSpots}
         />
       </div>
     );
@@ -208,7 +215,9 @@ export function CourtPanel({
         ? 'Toca al jugador que sale'
         : selected
           ? `${selected.name} · elige la acción arriba`
-          : `${phaseWord}Toca a un jugador y luego la acción`;
+          : (suspensionHint ?? `${phaseWord}Toca a un jugador y luego la acción`);
+  const hintColor =
+    mode === 'subs' ? 'text-rose-400' : selected ? 'text-amber-400' : suspensionHint && mode === 'actions' ? 'text-rose-400' : 'text-slate-400';
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -228,20 +237,14 @@ export function CourtPanel({
           onTapPair={attackDefense.onTapPair}
         />
       )}
-      <p
-        className={[
-          'shrink-0 text-center text-sm font-semibold',
-          mode === 'subs' ? 'text-rose-400' : selected ? 'text-amber-400' : 'text-slate-400',
-        ].join(' ')}
-      >
-        {hint}
-      </p>
+      <p className={`shrink-0 text-center text-sm font-semibold ${hintColor}`}>{hint}</p>
       <CourtView
         spots={spots}
         mode={mode}
         selectedPlayerId={selectedPlayerId}
         onTapSpot={handleTapSpot}
         partnerOf={partnerOf}
+        suspendedSpots={mode === 'lineup' ? undefined : suspendedSpots}
       />
     </div>
   );

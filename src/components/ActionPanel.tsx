@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { Player, SimpleFieldEventType, Zone } from '../domain/types';
+import type { Player, SuspensionEventType, Zone } from '../domain/types';
 import { useLiveMatchStore } from '../stores/useLiveMatchStore';
 import { ShotGrid3x3 } from './ShotGrid3x3';
 
@@ -17,7 +17,7 @@ const ACTION_LABELS: Record<StagedAction, string> = {
   keeper_goal: 'Marca gol',
 };
 
-const CARD_ACTIONS: { type: SimpleFieldEventType; label: string }[] = [
+const CARD_ACTIONS: { type: 'card_yellow' | SuspensionEventType; label: string }[] = [
   { type: 'card_yellow', label: 'Amarilla' },
   { type: 'card_red', label: 'Roja' },
   { type: 'card_blue', label: 'Azul' },
@@ -33,18 +33,34 @@ interface ActionPanelProps {
   /** Called once the action is recorded. */
   onDone: () => void;
   onCancel: () => void;
+  /** For a keeper's 2 minutos / roja / azul: who can take over the goal… */
+  benchGoalkeepers?: Player[];
+  /** …and which field player can make room for them. */
+  courtFieldPlayers?: Player[];
 }
+
+/** A keeper's suspension: first which keeper comes in, then who makes room. */
+type KeeperCover = { type: SuspensionEventType; keeperIn?: Player };
 
 /**
  * Replaces the court once a player and an action are picked: the result and
  * the goal zone on one screen for a shot, or which card for an amonestación.
  * Tapping the goalkeeper means the rival's shot at them.
  */
-export function ActionPanel({ player, action, onDone, onCancel }: ActionPanelProps) {
+export function ActionPanel({
+  player,
+  action,
+  onDone,
+  onCancel,
+  benchGoalkeepers = [],
+  courtFieldPlayers = [],
+}: ActionPanelProps) {
   const recordSimpleEvent = useLiveMatchStore((s) => s.recordSimpleEvent);
   const recordShot = useLiveMatchStore((s) => s.recordShot);
   const recordGkShot = useLiveMatchStore((s) => s.recordGkShot);
+  const recordSuspension = useLiveMatchStore((s) => s.recordSuspension);
   const [result, setResult] = useState<ShotResult | null>(null);
+  const [keeperCover, setKeeperCover] = useState<KeeperCover | null>(null);
   // A second tap before this screen closes must not record it twice.
   const saving = useRef(false);
 
@@ -114,6 +130,52 @@ export function ActionPanel({ player, action, onDone, onCancel }: ActionPanelPro
     </div>
   );
 
+  if (action === 'card' && keeperCover && !keeperCover.keeperIn) {
+    return (
+      <div className="flex h-full flex-col gap-4">
+        {header}
+        <p className="font-semibold text-slate-300">Sale de la portería. ¿Qué portero entra?</p>
+        <div className="grid grid-cols-2 gap-3">
+          {benchGoalkeepers.map((gk) => (
+            <PlayerButton key={gk.id} player={gk} onClick={() => setKeeperCover({ ...keeperCover, keeperIn: gk })} />
+          ))}
+        </div>
+        {benchGoalkeepers.length === 0 && <p className="text-sm text-slate-400">No hay ningún portero en el banquillo.</p>}
+        <button
+          type="button"
+          onClick={() => save(() => recordSuspension(player.id, keeperCover.type))}
+          className="self-start rounded-full px-4 py-2.5 font-semibold text-slate-300 ring-1 ring-white/15 touch-manipulation active:scale-95"
+        >
+          Sin cambiar de portero
+        </button>
+      </div>
+    );
+  }
+
+  if (action === 'card' && keeperCover?.keeperIn) {
+    const keeperIn = keeperCover.keeperIn;
+    return (
+      <div className="flex h-full flex-col gap-4">
+        {header}
+        <p className="font-semibold text-slate-300">
+          Entra {keeperIn.name}. ¿Qué jugador de campo le deja sitio?
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {courtFieldPlayers.map((fp) => (
+            <PlayerButton
+              key={fp.id}
+              player={fp}
+              onClick={() =>
+                save(() => recordSuspension(player.id, keeperCover.type, { keeperInId: keeperIn.id, fieldOutId: fp.id }))
+              }
+            />
+          ))}
+        </div>
+        <p className="text-sm text-slate-400">Su sitio cuenta atrás los 2 minutos y luego vuelve él.</p>
+      </div>
+    );
+  }
+
   if (action === 'card') {
     return (
       <div className="flex h-full flex-col gap-4">
@@ -121,9 +183,20 @@ export function ActionPanel({ player, action, onDone, onCancel }: ActionPanelPro
         <p className="font-semibold text-slate-300">¿Qué amonestación?</p>
         <div className="grid grid-cols-2 gap-3">
           {CARD_ACTIONS.map((card) => (
-            <BigButton key={card.type} label={card.label} onClick={() => void save(() => recordSimpleEvent(player.id, card.type))} />
+            <BigButton
+              key={card.type}
+              label={card.label}
+              onClick={() => {
+                const type = card.type;
+                if (type === 'card_yellow') save(() => recordSimpleEvent(player.id, type));
+                // The keeper leaves the goal: ask who takes it over before recording.
+                else if (isGoalkeeper) setKeeperCover({ type });
+                else save(() => recordSuspension(player.id, type));
+              }}
+            />
           ))}
         </div>
+        <p className="text-sm text-slate-400">2 minutos, roja y azul le sacan del campo y su sitio cuenta atrás.</p>
       </div>
     );
   }
@@ -166,6 +239,22 @@ export function ActionPanel({ player, action, onDone, onCancel }: ActionPanelPro
         <ShotGrid3x3 onSelectZone={chooseZone} disabled={!result} />
       </div>
     </div>
+  );
+}
+
+function PlayerButton({ player, onClick }: { player: Player; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'flex h-16 items-center gap-2 rounded-2xl px-3 text-left font-bold ring-1 transition-transform touch-manipulation active:scale-95',
+        player.position === 'goalkeeper' ? 'bg-sky-500/10 text-sky-300 ring-sky-500/40' : 'bg-white/8 text-white ring-white/10',
+      ].join(' ')}
+    >
+      <span className="text-2xl font-black">{player.number}</span>
+      <span className="truncate">{player.name}</span>
+    </button>
   );
 }
 

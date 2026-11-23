@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Player } from '../domain/types';
+import type { MatchEvent, Player } from '../domain/types';
 import { buildTimeline } from './timeline';
 import { courtChange, shot } from './testFixtures';
 
@@ -72,6 +72,48 @@ describe('buildTimeline', () => {
     const rows = buildTimeline(events, players);
     expect(rows.map((r) => r.kind).sort()).toEqual(['ad_switch', 'substitution']);
     expect(rows.find((r) => r.kind === 'substitution')).toMatchObject({ playerOut: fieldC, playerIn: fieldD });
+  });
+
+  it('shows a 2 minutos with only its return, never as substitutions', () => {
+    const root = {
+      id: 'x1',
+      matchId: 'm1',
+      playerId: 'fieldA',
+      timestamp: 600,
+      eventType: 'exclusion_2min',
+      eventData: { suspension: { outId: 'fieldA', autoReturn: true, permanent: false } },
+    } as MatchEvent;
+    const exit = { ...courtChange('fieldA', 600, 'exit'), eventData: { action: 'exit', excl: 'x1' } } as MatchEvent;
+    const back = { ...courtChange('fieldA', 720, 'enter'), eventData: { action: 'enter', excl: 'x1', back: true } } as MatchEvent;
+    const rows = buildTimeline([root, exit, back], players);
+    expect(rows.map((r) => r.kind)).toEqual(['single', 'excl_back']);
+    expect(rows[1]).toMatchObject({ timestamp: 720, player: fieldA });
+  });
+
+  it('shows the keeper change of a goalkeeper’s 2 minutos with who made room', () => {
+    // Recorded as one batch: the 2 minutos first, then its court changes.
+    const root = {
+      id: 'x2',
+      matchId: 'm1',
+      playerId: 'gkA',
+      timestamp: 600,
+      createdAt: 1000,
+      eventType: 'exclusion_2min',
+      eventData: { suspension: { outId: 'fieldA', autoReturn: true, permanent: false } },
+    } as MatchEvent;
+    const events = [
+      root,
+      { ...courtChange('gkA', 600, 'exit'), createdAt: 1001, eventData: { action: 'exit', excl: 'x2' } } as MatchEvent,
+      {
+        ...courtChange('gkB', 600, 'enter'),
+        createdAt: 1002,
+        eventData: { action: 'enter', spot: 'goalkeeper', excl: 'x2' },
+      } as MatchEvent,
+      { ...courtChange('fieldA', 600, 'exit'), createdAt: 1003, eventData: { action: 'exit', excl: 'x2' } } as MatchEvent,
+    ];
+    const rows = buildTimeline(events, players);
+    expect(rows.map((r) => r.kind)).toEqual(['single', 'excl_cover']);
+    expect(rows[1]).toMatchObject({ playerIn: gkB, playerOut: fieldA });
   });
 
   it('sorts every row chronologically', () => {

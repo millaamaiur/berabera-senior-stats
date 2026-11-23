@@ -123,6 +123,42 @@ export interface CourtChangeEventData {
    * Deshacer leaves them alone.
    */
   ad?: Phase;
+  /**
+   * Set on the court changes a suspension made (see SuspensionEventData), to
+   * the id of its 2 minutos / roja / azul event — so Deshacer and deleting it
+   * take them all away together, and the timeline doesn't list them as
+   * substitutions.
+   */
+  excl?: string;
+  /** With `excl`: the automatic return once the 2 minutes are up. */
+  back?: true;
+}
+
+/** Which events take a player off court for 2 minutes of match clock (team plays one short). */
+export type SuspensionEventType = 'exclusion_2min' | 'card_red' | 'card_blue';
+
+/** How long a suspension leaves the team one short, in match-clock seconds. */
+export const SUSPENSION_SECONDS = 120;
+
+/**
+ * On a 2 minutos / roja / azul given to a player on court. Absent on ones
+ * recorded before suspensions were tracked (and on any given off court):
+ * those are just counted, as they always were.
+ */
+export interface SuspensionEventData {
+  suspension: {
+    /**
+     * Who left the court and leaves their spot empty for the 2 minutes: the
+     * player themself, or — when it's the goalkeeper and another keeper
+     * comes in — the field player who made room for them.
+     */
+    outId: string;
+    spot?: CourtSpot;
+    /** Whether `outId` comes back on his own once the 2 minutes are up. */
+    autoReturn: boolean;
+    /** Roja, azul or a 3rd exclusion: the player is out for the rest of the match. */
+    permanent: boolean;
+  };
 }
 
 interface BaseEvent {
@@ -148,9 +184,9 @@ export type MatchEvent =
   | (BaseEvent & { eventType: 'turnover'; eventData?: TurnoverEventData | null })
   | (BaseEvent & { eventType: 'recovery' })
   | (BaseEvent & { eventType: 'card_yellow' })
-  | (BaseEvent & { eventType: 'card_red' })
-  | (BaseEvent & { eventType: 'card_blue' })
-  | (BaseEvent & { eventType: 'exclusion_2min' })
+  | (BaseEvent & { eventType: 'card_red'; eventData?: SuspensionEventData | null })
+  | (BaseEvent & { eventType: 'card_blue'; eventData?: SuspensionEventData | null })
+  | (BaseEvent & { eventType: 'exclusion_2min'; eventData?: SuspensionEventData | null })
   | (BaseEvent & { eventType: 'court_change'; eventData: CourtChangeEventData });
 
 export type EventType = MatchEvent['eventType'];

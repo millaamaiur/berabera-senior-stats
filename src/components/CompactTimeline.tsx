@@ -1,5 +1,11 @@
 import type { MatchEvent, Player } from '../domain/types';
-import { buildTimeline, describeAttackDefenseSwitch, type EditableTimelineRow, type TimelineRow } from '../stats/timeline';
+import {
+  buildTimeline,
+  describeAttackDefenseSwitch,
+  describeSuspensionRow,
+  type EditableTimelineRow,
+  type TimelineRow,
+} from '../stats/timeline';
 import { describeEventDetail, EVENT_LABELS } from '../utils/eventLabels';
 import { formatClock } from '../utils/time';
 
@@ -14,6 +20,8 @@ interface CompactTimelineProps {
 function involves(row: TimelineRow, playerId: string): boolean {
   if (row.kind === 'substitution') return row.playerOut.id === playerId || row.playerIn.id === playerId;
   if (row.kind === 'ad_switch') return [...row.playersIn, ...row.playersOut].some((p) => p.id === playerId);
+  if (row.kind === 'excl_back') return row.player.id === playerId;
+  if (row.kind === 'excl_cover') return row.playerIn.id === playerId || row.playerOut?.id === playerId;
   return row.event.playerId === playerId;
 }
 
@@ -27,11 +35,13 @@ export function CompactTimeline({ events, players, onRowClick, onlyPlayerId }: C
     <div className="flex flex-col gap-1.5">
       {rows.map((row) => {
         const clickable = Boolean(onRowClick);
-        if (row.kind === 'ad_switch') {
+        if (row.kind === 'ad_switch' || row.kind === 'excl_back' || row.kind === 'excl_cover') {
           return (
             <div key={row.id} className="flex flex-col gap-0.5 px-2 py-0.5">
               <span className="font-mono text-[0.6rem] text-slate-500">{formatClock(row.timestamp)}</span>
-              <span className="truncate text-[0.7rem] font-semibold text-slate-500">⇄ {describeAttackDefenseSwitch(row)}</span>
+              <span className="truncate text-[0.7rem] font-semibold text-slate-500">
+                {row.kind === 'ad_switch' ? `⇄ ${describeAttackDefenseSwitch(row)}` : describeSuspensionRow(row)}
+              </span>
             </div>
           );
         }
